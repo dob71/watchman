@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  orchestrator:
+    image: orchestrator-image
+    container_name: orchestrator-container
+    volumes:
+      - ./images:/images
+      - ./sysconfig:/sysconfig
+      - ./events:/events
+    depends_on:
+      #- llm
+      - alexa
+      - imager
+      - ui
+
+   # Ollama can be used locally or in docker
+   # Under Linux it's esier to install locally: 
+   #  curl -fsSL https://ollama.com/install.sh | sh
+   # For docker setup see https://hub.docker.com/r/ollama/ollama
+#  llm:
+#    image: docker pull ollama/ollama:0.5.1
+#    expose:
+#     - 11434/tcp
+#    healthcheck:
+#      test: ollama --version || exit 1
+#    command: serve
+#    restart: on-failure
+#    volumes:
+#      - ${OLLAMA_MODELS_DIR:-./ollama}:/root/.ollama
+#      - ${DATA_DIR:-.}/images:/images
+#      - ${DATA_DIR:-.}/sysconfig:/sysconfig
+#      - ${DATA_DIR:-.}/events:/events
+#    deploy:
+#      resources:
+#        reservations:
+#          devices:
+#            - driver: nvidia
+#              device_ids: ['all']
+#              capabilities: [gpu]
+
+  alexa:
+    image: alexa-image
+    container_name: alexa-container
+    volumes:
+      - ${DATA_DIR:-.}/images:/images
+      - ${DATA_DIR:-.}/sysconfig:/sysconfig
+      - ${DATA_DIR:-.}/events:/events
+
+  imager:
+    image: imager-image
+    container_name: imager-container
+    volumes:
+      - ${DATA_DIR:-.}/images:/images
+      - ${DATA_DIR:-.}/sysconfig:/sysconfig
+      - ${DATA_DIR:-.}/events:/events
+
+  ui:
+    image: ui-image
+    container_name: ui-container
+    ports:
+      - "8080:8080"
+    volumes:
+      - ${DATA_DIR:-.}/images:/images
+      - ${DATA_DIR:-.}/sysconfig:/sysconfig
+      - ${DATA_DIR:-.}/events:/events
+
