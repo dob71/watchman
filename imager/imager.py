@@ -1,5 +1,35 @@
+import os
 import requests
 import json
+from dotenv import load_dotenv
+
+# Figure the path to the data folders depending on where we run
+DATA_DIR = '/'
+if not os.path.exists('/.dockerenv'):
+    load_dotenv('../.env')
+    DATA_DIR = os.getenv('DATA_DIR')
+    IMGDIR='/images'
+    CFGDIR='/sysconfig'
+
+# We'll need the images and config folders.
+IMGDIR=f"{DATA_DIR}/images"
+CFGDIR=f"{DATA_DIR}/sysconfig"
+
+# Config dictionary
+CFG={}
+def read_config():
+    # just fake it for now
+    CFG['1'] = f""
+    CFG['2'] = f""
+    CFG['3'] = f""
+    CFG['4'] = f""
+    CFG[''] = f""
+    CFG[''] = f""
+    CFG[''] = f""
+    CFG[''] = f""
+    CFG[''] = f""
+    CFG[''] = f""
+
 
 # Replace with your NVR details
 NVR_IP = "192.168.0.10"

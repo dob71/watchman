@@ -7,12 +7,12 @@ import time
 # https://github.com/meta-llama/llama-models/blob/main/models/llama3_2/vision_prompt_format.md
 
 # which model to use
-#MODEL='llama3.2-vision:11b-instruct-fp16'
-MODEL='llama3.2-vision:latest'
+MODEL='llama3.2-vision:11b-instruct-fp16'
+#MODEL='llama3.2-vision:latest'
 OBJECT='a plant'
 
 # Pass in the path to the image
-path = "/work/ik_capstone/images/captured_image.jpg"
+path = "/work/ik_capstone/.data/images/captured_image.jpg"
 img1 = base64.b64encode(Path(path).read_bytes()).decode()
 img2 = Path(path).read_bytes()
 
@@ -20,8 +20,20 @@ img2 = Path(path).read_bytes()
 paths = []
 images = []
 for ii in range(4):
-    paths.append(f"/work/ik_capstone/images/captured_image{ii}.jpg")
+    paths.append(f"/work/ik_capstone/.data/images/captured_image{ii}.jpg")
     images.append(base64.b64encode(Path(paths[ii]).read_bytes()).decode())
+
+paths50 = []
+images50 = []
+for ii in range(4):
+    paths50.append(f"/work/ik_capstone/.data/images/r50_captured_image{ii}.jpg")
+    images50.append(base64.b64encode(Path(paths[ii]).read_bytes()).decode())
+
+paths25 = []
+images25 = []
+for ii in range(4):
+    paths25.append(f"/work/ik_capstone/.data/images/r25_captured_image{ii}.jpg")
+    images25.append(base64.b64encode(Path(paths[ii]).read_bytes()).decode())
 
 print(f"\nLoading the model")
 response = chat(
@@ -47,8 +59,9 @@ PROMPT = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>You are a h
 #)
 #print(response.response)
 
-start_time_ms = int(time.time() * 1000)
+print("Original 2560x1440")
 
+start_time_ms = int(time.time() * 1000)
 for ii in range(4):
     response = generate(
         model=MODEL,
@@ -57,9 +70,33 @@ for ii in range(4):
         options={'temperature': 0.0},
     )
     print(f"\nimage {ii}:\n{response.response}")
-
 end_time_ms = int(time.time() * 1000)
+print(f"That took {((end_time_ms - start_time_ms) / 1000):.2f}")
 
+print("\n50%% 1280x720")
+start_time_ms = int(time.time() * 1000)
+for ii in range(4):
+    response = generate(
+        model=MODEL,
+        prompt=PROMPT,
+        images=[images50[ii]],
+        options={'temperature': 0.0},
+    )
+    print(f"\nimage {ii}:\n{response.response}")
+end_time_ms = int(time.time() * 1000)
+print(f"That took {((end_time_ms - start_time_ms) / 1000):.2f}")
+
+print("\n25%% 640x360")
+start_time_ms = int(time.time() * 1000)
+for ii in range(4):
+    response = generate(
+        model=MODEL,
+        prompt=PROMPT,
+        images=[images25[ii]],
+        options={'temperature': 0.0},
+    )
+    print(f"\nimage {ii}:\n{response.response}")
+end_time_ms = int(time.time() * 1000)
 print(f"That took {((end_time_ms - start_time_ms) / 1000):.2f}")
 
 """
