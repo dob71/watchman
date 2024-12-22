@@ -1,3 +1,5 @@
+# Pulls images from the channels. It could be blobked on any request preventing other
+# channels from loading. It has to be changed to run in a separate thread for each channel.
 import os
 import sys
 import shutil
@@ -8,28 +10,26 @@ import base64
 from pathlib import Path
 from dotenv import load_dotenv
 
+# Pull in shared variables (file names, JSON object names, ...)
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(parent_dir)
+from shared_settings import *
+
 # Figure the path to the data folders depending on where we run
 DATA_DIR = ''
 if not os.path.exists('/.dockerenv'):
-    load_dotenv('../.env')
+    load_dotenv('./.env')
     DATA_DIR = os.getenv('DATA_DIR')
 
 # We'll need the images and config folders.
-IMGDIR = f"{DATA_DIR}/images"
-CFGDIR = f"{DATA_DIR}/sysconfig"
+IMGDIR = f"{DATA_DIR}/{IMG_dir}"
+CFGDIR = f"{DATA_DIR}/{CFG_dir}"
 
 # Imager config file name
-IMGR_CONFIG = f"{CFGDIR}/sources.json"
+IMGR_CONFIG = f"{CFGDIR}/{CFG_imager}"
 
 # Config dictionary
 CFG={}
-CFG_version_key = "version"
-CFG_channels_key = 'channels'
-CFG_chan_id_key = 'channel'
-CFG_chan_url_key = "url"
-CFG_chan_name_key = "name"
-CFG_chan_upd_int_key = "upd_int"
-DEF_upd_int = 2 # default update interval for channels (in seconds)
 
 # Check config, returns None if nothing new, or new config dictionary
 # if the config was updated and has to be re-applied.
@@ -37,8 +37,15 @@ def read_config():
     global CFG
     # Load JSON first into new config object, 
     # then chack the config version
-    with open(IMGR_CONFIG, "r") as file:
-        new_cfg = json.load(file)
+    try:
+        with open(IMGR_CONFIG, "r") as file:
+            new_cfg = json.load(file)
+    except json.JSONDecodeError as e:
+        print(f"{sys._getframe().f_code.co_name}: file {IMGR_CONFIG}, JSON error on line {e.lineno}: {e.msg}")
+        return None
+    except Exception as e:
+        print(f"{sys._getframe().f_code.co_name}: file {IMGR_CONFIG}, Failed to load JSON file:", e)
+        return None
     if len(new_cfg) == 0 or not CFG_version_key in new_cfg.keys():
         print(f"{sys._getframe().f_code.co_name}: malformed config, no \"{CFG_version_key}\" key found")
         return None
@@ -81,7 +88,7 @@ def read_and_apply_config():
             continue
         # Check update interval value
         if not CFG_chan_upd_int_key in ch.keys():
-            ch[CFG_chan_upd_int_key] = DEF_upd_int
+            ch[CFG_chan_upd_int_key] = CFG_DEF_upd_int
         try: 
             ch[CFG_chan_upd_int_key] = int(ch[CFG_chan_upd_int_key])
         except ValueError:
@@ -96,7 +103,7 @@ def read_and_apply_config():
     CFG[CFG_channels_key] = channels
     return True
 
-# Main loop (called once a second, might be called back-to-back if blocked for too long)
+# Main loop (called once in IMG_poll_int_ms, might be called back-to-back if blocked for too long)
 def main_loop(iteration):
     global CFG
     # Pull images from channels, jasonify and put into the channel folders
@@ -128,10 +135,11 @@ def main_loop(iteration):
         json_file_pname = f"{IMGDIR}/{ch[CFG_chan_id_key]}/{json_file}"
         json_tmp_file_pname = f"{json_file_pname}.tmp"
         js = {}
-        js['name'] = name # Verbal description of the channel
-        js['data'] = base64.b64encode(Path(img_file_pathname).read_bytes()).decode() # Image data
-        js['time'] = time.time() # will use epoch time as we will likely report differential
-        js['iter'] = iteration # might be useful for tracking changes
+        js[IMG_chan_key] = chan_id # Channel ID from channel config
+        js[IMG_name_key] = name # Verbal description of the channel
+        js[IMG_data_key] = base64.b64encode(Path(img_file_pathname).read_bytes()).decode() # Image data
+        js[IMG_time_key] = time.time() # will use epoch time as we will likely report differential
+        js[IMG_iter_key] = iteration # might be useful for tracking changes
         with open(json_tmp_file_pname, "w") as f:
             json.dump(js, f)
         # replace by atomic renaming (reqires Unix)
@@ -142,6 +150,7 @@ def main_loop(iteration):
     return
 
 # Run the main loop
+loop_interval = IMG_poll_int_ms
 iteration = 0
 while True:
     start_time_ms = int(time.time() * 1000)
@@ -149,6 +158,6 @@ while True:
     main_loop(iteration)
     iteration += 1
     end_time_ms = int(time.time() * 1000)
-    if start_time_ms + 1000 > end_time_ms:
-        time.sleep((start_time_ms + 1000.0 - end_time_ms) / 1000.0)
+    if start_time_ms + loop_interval > end_time_ms:
+        time.sleep((start_time_ms + loop_interval - end_time_ms) / 1000.0)
 
