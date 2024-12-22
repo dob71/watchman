@@ -8,7 +8,7 @@ import time
 
 # which model to use
 MODEL='llama3.2-vision:11b-instruct-fp16'
-#MODEL='llama3.2-vision:latest'
+#MODEL='llama3.2-vision:latest' # 4-bit quantized
 OBJECT='a plant'
 
 # Pass in the path to the image
