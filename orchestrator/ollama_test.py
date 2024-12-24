@@ -12,7 +12,7 @@ MODEL='llama3.2-vision:11b-instruct-fp16'
 OBJECT='a plant'
 
 # Pass in the path to the image
-path = "/work/ik_capstone/.data/images/captured_image.jpg"
+path = "/work/ik_capstone/.data/test_images/captured_image.jpg"
 img1 = base64.b64encode(Path(path).read_bytes()).decode()
 img2 = Path(path).read_bytes()
 
@@ -20,19 +20,19 @@ img2 = Path(path).read_bytes()
 paths = []
 images = []
 for ii in range(4):
-    paths.append(f"/work/ik_capstone/.data/images/captured_image{ii}.jpg")
+    paths.append(f"/work/ik_capstone/.data/test_images/captured_image{ii}.jpg")
     images.append(base64.b64encode(Path(paths[ii]).read_bytes()).decode())
 
 paths50 = []
 images50 = []
 for ii in range(4):
-    paths50.append(f"/work/ik_capstone/.data/images/r50_captured_image{ii}.jpg")
+    paths50.append(f"/work/ik_capstone/.data/test_images/r50_captured_image{ii}.jpg")
     images50.append(base64.b64encode(Path(paths[ii]).read_bytes()).decode())
 
 paths25 = []
 images25 = []
 for ii in range(4):
-    paths25.append(f"/work/ik_capstone/.data/images/r25_captured_image{ii}.jpg")
+    paths25.append(f"/work/ik_capstone/.data/test_images/r25_captured_image{ii}.jpg")
     images25.append(base64.b64encode(Path(paths[ii]).read_bytes()).decode())
 
 print(f"\nLoading the model")

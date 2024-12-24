@@ -1,5 +1,5 @@
-# Pulls images from the channels. It could be blobked on any request preventing other
-# channels from loading. It has to be changed to run in a separate thread for each channel.
+# Pulls images from the channels. It could be blocked on any request preventing other
+# channels from updating images. It has to be changed to run in a separate thread for each channel.
 import os
 import sys
 import shutil
@@ -11,8 +11,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Pull in shared variables (file names, JSON object names, ...)
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.append(parent_dir)
+sys.path.append(os.path.dirname(__file__))
+sys.path.append(os.path.abspath("."))
 from shared_settings import *
 
 # Figure the path to the data folders depending on where we run
@@ -49,7 +49,7 @@ def read_config():
     if len(new_cfg) == 0 or not CFG_version_key in new_cfg.keys():
         print(f"{sys._getframe().f_code.co_name}: malformed config, no \"{CFG_version_key}\" key found")
         return None
-    if not (len(CFG) == 0 or not CFG_version_key in CFG.keys() or CFG[CFG_version_key] < new_cfg[CFG_version_key]):
+    if len(CFG) != 0 and CFG_version_key in CFG.keys() and CFG[CFG_version_key] >= new_cfg[CFG_version_key]:
         return None
     if not CFG_channels_key in new_cfg.keys():
        new_cfg[CFG_channels_key] = []

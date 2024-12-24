@@ -1,21 +1,26 @@
 The events folder ${DATA_DIR}/events
-The events are stored in subfolders by channel/object/event
+The events are stored in subfolders, in channel/events.json
 Example:
 ./.data/events
-├── 1/
+├── porch/
 │   ├── cat/
-│   │    ├── last_seen.json
+│   │    ├── location.json
 │   │    └── alert.json
 │   └── person/
-├── 2/
+├── backyard/
 │   ├── cat/
-│   │    └── last_seen.json
+│   │    └── location.json
 │   └── person/
-│        └── alert.json
+│   │    ├── alert.json
+│        └── read_alert.json
 ...
-The exact content of the folders and files is TBD.
-The 0,1,... are input channels (i.e. image sources: webcams, surveilance cameras, ...)
-The supplier of the information should write image data (base64) along w/ metadata to
-the .tmp first, then use rename to replace. The reader should open and read at once
-(no re-opening). For the alert the reader reanmes to .reader.tmp first, then reads
-and deletes. The object names should (normally) be identifiers, but it's ok for the start.
+The porch, backyard, ... are the input channels (i.e. image sources).
+The supplier of the information should write the event data to the .tmp first, 
+then use atomic rename to replace. The reader should open and read at once
+(no re-opening). The alert.json file is removed after configured age out time.
+If the alert info chnages, the file is updated (i.e. aging out starts when
+the alert conditions are no longer detected). In additioon to the alert message,
+the alert.json contains the configured mute time. The reader can track it to
+avoid repeating alerts unnecessarily often.
+Similarly to the alerts, the location.json is removed after its age out time.
+
