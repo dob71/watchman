@@ -9,6 +9,7 @@
 import os
 import sys
 import time
+import re
 import json
 import base64
 import shutil
@@ -40,8 +41,23 @@ OBJ_CONFIG = f"{CFGDIR}/{CFG_objects}"
 CFG = {}
 # Channel runners dictionary (instances of ChannelOrchestrator, keyed by channel ID)
 CRUN = {}
-# Model interface class instance for use to communicate w/ the configured AI model
+# Model interface class instance for communicating w/ the configured ML model
 MODEL = None
+
+# write json to a file using atomic rename
+def json_atomic_write(js, json_tmp_file_pname, json_file_pname):
+    res = False
+    try:
+        with open(json_tmp_file_pname, "w") as f:
+            json.dump(js, f)
+        try:
+            os.rename(json_tmp_file_pname, json_file_pname)
+            res = True
+        except:
+            print(f"{sys._getframe().f_code.co_name}: unable to do atomic rename of {json_tmp_file_pname} to {json_file_pname}")
+    except:
+        print(f"{sys._getframe().f_code.co_name}: unable to write {json_tmp_file_pname}")
+    return res
 
 # Gets the number of seconds since the file was last modified (-1 if error)
 def get_modified_time_ago(filepath):
@@ -174,15 +190,39 @@ class ChannelOrchestrator:
             return False
         return True
 
-    # Run detection on one of the objects in the channel image, and generate messages for reporting
-    def loop_run_updte(self, e_list):
-        # TBD
-        return False
+    # All the info is collected and ready, generate the service data files.
+    def loop_run_update(self, obj_js, e_list):
+        obj_id = obj_js[EVT_obj_id_key]
+        obj_dir =  f"{EVTDIR}/{self.chan}/{obj_id}"
+        for e in e_list:
+            obj_svc_file = f"{obj_dir}/{e[EVT_osvc_key]}.json"
+            obj_svc_tmp_file = f"{obj_svc_file}.tmp"
+            json_atomic_write(e, obj_svc_tmp_file, obj_svc_file)
+        return e_list
 
     # Run detection on one of the objects in the channel image, and generate messages for reporting
-    def loop_run_inference(self, e_list):
-        # TBD
-        return False
+    def loop_run_inference(self, obj_js, e_list):
+        if MODEL is None:
+            return []
+        obj_name = obj_js[EVT_obj_names_key][0]
+        obj_desc = obj_js[EVT_obj_desc_key]
+        # technically, it makes sense to have processing tuned for each service, but for efficiency
+        # we do inference for the object described by obj_desc once, then use message templates to
+        # tweak the results to the purpose of the specific services.
+        res, loc_desc = MODEL.locate(self.img_data, obj_desc, self.chan_name)
+        if not res:
+            return [] # not found/no result
+        # for models that can ID object, but cannot add description within the image, we can use 
+        # use the channel description, as it will point to the general location (front door, backyard, ...).
+        if loc_desc is None:
+            loc_msg = self.chan_name
+        # update event services objects w/ the inference data
+        for e in e_list:
+            e[EVT_in_time_key] = time.time()
+            d = {'LOCATION': loc_msg, 'CHANNEL': self.chan_name, 'OBJNAME': obj_name}
+            msg = re.sub(r'\[([^\]]*)\]', lambda x:d.get(x.group(1)) if x.group(1) in d.keys() else f"[{x.group(1)}]", e[EVT_msg_key])
+            e[EVT_msg_key] = msg
+        return e_list
 
     # Prepare object events folder and handle service files
     def loop_run_handle_object(self, o):
@@ -190,11 +230,20 @@ class ChannelOrchestrator:
         obj_names = o[CFG_obj_names_key]
         obj_desc = o[CFG_obj_desc_key]
         obj_svcs = o[CFG_obj_svcs_key]
+        obj_file = f"{obj_dir}/{EVT_obj_file_name}"
+        obj_js = {
+            EVT_obj_id_key: obj_id,
+            EVT_obj_names_key: obj_names,
+            EVT_obj_desc_key: obj_desc,
+        }
         # object events directory
         obj_dir =  f"{EVTDIR}/{self.chan}/{obj_id}"
         init_obj_folder = False
-        if not os.path.exists(obj_dir):
+        if not os.path.exists(obj_file):
             os.makedirs(obj_dir, exist_ok=True)
+            # create obect json file for the folder
+            if not json_atomic_write(obj_js, f"{obj_file}.tmp", obj_file):
+                return obj_js, [] # do not process anything until we can create the proper file tree
             init_obj_folder = True
         # for new folder need to populate the folder w/ .off files for CFG_osvc_def_off_key option
         if init_obj_folder:
@@ -217,14 +266,12 @@ class ChannelOrchestrator:
             evt = {
                 EVT_osvc_key: s[CFG_osvc_name_key],
                 EVT_c_name_key: self.chan_name,
-                EVT_obj_names_key: obj_names,
-                EVT_obj_desc_key: obj_desc,
                 EVT_in_time_key: 0, # populated after inference
                 EVT_msg_key: s[CFG_osvc_msgtpl_key], # putting template here for now
                 EVT_alrt_mute_time_key: 0 if not CFG_osvc_mtime_key in s.keys() else s[CFG_osvc_mtime_key]
             }
             e_list.append(evt)
-        return e_list
+        return obj_js, e_list
 
     # Handle channel (called from main loop to process each channel)
     # should run in its own thread or process eventually
@@ -238,13 +285,13 @@ class ChannelOrchestrator:
         # Go over the objects of interest, ask ML model about them in the image
         # and if discovered anything interesting update the event files
         for o in objects:
-            e_list = self.loop_run_handle_object(o)
+            obj_js, e_list = self.loop_run_handle_object(o)
             if len(e_list) == 0:
                 continue
-            e_list = self.loop_run_inference(e_list)
+            e_list = self.loop_run_inference(obj_js, e_list)
             if len(e_list) == 0:
                 continue
-            self.loop_run_update(e_list)
+            self.loop_run_update(obj_js, e_list)
         return
 
 # Main loop (called w/ ORCH_poll_int_ms interval)

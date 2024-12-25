@@ -31,6 +31,21 @@ IMGR_CONFIG = f"{CFGDIR}/{CFG_imager}"
 # Config dictionary
 CFG={}
 
+# write json to a file using atomic rename
+def json_atomic_write(js, json_tmp_file_pname, json_file_pname):
+    res = False
+    try:
+        with open(json_tmp_file_pname, "w") as f:
+            json.dump(js, f)
+        try:
+            os.rename(json_tmp_file_pname, json_file_pname)
+            res = True
+        except:
+            print(f"{sys._getframe().f_code.co_name}: unable to do atomic rename of {json_tmp_file_pname} to {json_file_pname}")
+    except:
+        print(f"{sys._getframe().f_code.co_name}: unable to write {json_tmp_file_pname}")
+    return res
+
 # Check config, returns None if nothing new, or new config dictionary
 # if the config was updated and has to be re-applied.
 def read_config():
@@ -140,13 +155,8 @@ def main_loop(iteration):
         js[IMG_data_key] = base64.b64encode(Path(img_file_pathname).read_bytes()).decode() # Image data
         js[IMG_time_key] = time.time() # will use epoch time as we will likely report differential
         js[IMG_iter_key] = iteration # might be useful for tracking changes
-        with open(json_tmp_file_pname, "w") as f:
-            json.dump(js, f)
-        # replace by atomic renaming (reqires Unix)
-        try:
-            os.rename(json_tmp_file_pname, json_file_pname)
-        except:
-            print(f"{sys._getframe().f_code.co_name}: unable to do atomic rename of {json_tmp_file_pname} to {json_file_pname}")
+        # write file and replace by atomic renaming (reqires Unix)
+        json_atomic_write(js, json_tmp_file_pname, json_file_pname)
     return
 
 # Run the main loop

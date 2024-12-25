@@ -17,7 +17,7 @@ CFG_chan_upd_int_key = "upd_int" # key for the image update interval in channels
 CFG_DEF_upd_int = 2              # default update interval for channels (in number of IMG_poll_int_ms intervals)
 # objects config JASON
 CFG_obj_version_key = "version"  # config update counter (for detecting changes)
-CFG_obj_model_key = "model"      # AI model interface ID string (see in the code, default "ollama-simple")
+CFG_obj_model_key = "model"      # ML model interface ID string (see in the code, default "ollama-simple")
 CFG_obj_objects_key = "objects"  # list of objects of interest
 # object config JASON keys for each entry in the list of objects of interest
 CFG_obj_id_key = "obj_id"        # unique ID of the object of interest (single word, used as the object dir name in the events folder)
@@ -30,6 +30,8 @@ CFG_alrt_svc_name = "alert"      # name of the alert service (used to generate n
 # keys for use in service entries under object
 CFG_osvc_name_key = "osvc_name"  # name of the service (CFG_loc_svc_name, CFG_alrt_svc_name)
 CFG_osvc_msgtpl_key = "msgtpl"   # template of the verbal message to send to Alexa for the service
+                                 # [LOCATION] - location description, [CHANNEL] - channel name, [OBJNAME] - first name from CFG_obj_names_key list
+                                 # [TIMEAGO] - how log ago (TBD), [OBJECT] - object name as was in the question (TBD)
 CFG_osvc_age_out_key = "age_out" # number of seconds after which to remove the event file for this service
 CFG_osvc_skip_chan_key = "skip_ch"# list of channel IDs to skip this service on (optional key)
 CFG_osvc_mtime_key = "mute_time" # number of seconds to mute the alert after issuing it (for alert service only, i.e. optional key)
@@ -48,13 +50,15 @@ IMG_iter_key = 'iter'  # iteraration number when the image is captured
 # Orchestrator shared values
 ORCH_poll_int_ms = 500 # for alerts it might be useful to keep this low
 # Event DB files/folders names
-EVT_dir = 'events'     # locaton of the events DB folder
+EVT_dir = 'events'             # locaton of the events DB folder
+EVT_obj_file_name = 'obj.json' # obect description file name
 # Event DB keys shared between all services
+EVT_obj_id_key = "o_id"     # object ID (from CFG_obj_id_key)
+EVT_obj_names_key = "names" # names of the object of interest from config (object name coming from Alexa should match one of them to get the answer)
+EVT_obj_desc_key = "o_desc" # object description string from config (for internal use)
 EVT_osvc_key = "osvc_name"  # event service name from CFG_osvc_name_key (for internal use)
 EVT_c_name_key = "c_name"   # event channel name (for use in speech)
 EVT_in_time_key = "in_time" # epoch time when the event was reported
-EVT_obj_names_key = "names" # names of the object of interest from config (object name coming from Alexa should match one of them to get the answer)
-EVT_obj_desc_key = "o_desc" # object description string from config (for internal use)
 EVT_msg_key = "msg"         # message to play for the event
 EVT_alrt_mute_time_key = "mtime" # for alerts only, time in seconds mute after reporting
 
@@ -63,7 +67,7 @@ CFG_obj_schema = {
     "type": "object",
     "properties": {
         CFG_obj_id_key: {"type": "string"},
-        CFG_obj_names_key: {"type": "array", "items": {"type": "string"}},
+        CFG_obj_names_key: {"type": "array", "items": {"type": "string"}, "minItems": 1 },
         CFG_obj_desc_key: {"type": "string"},
         CFG_obj_svcs_key: {"type": "array", "items": 
             {"type": "object", "properties": {

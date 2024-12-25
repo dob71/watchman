@@ -16,6 +16,7 @@ path = "/work/ik_capstone/.data/test_images/captured_image.jpg"
 img1 = base64.b64encode(Path(path).read_bytes()).decode()
 img2 = Path(path).read_bytes()
 
+desc = [ 'porch', 'driveway', 'front yard', 'back yard' ]
 # Arrays of paths and image data for an experiment
 paths = []
 images = []
@@ -42,13 +43,25 @@ response = chat(
 )
 print(f"Model: {response.model}, result:{response.done_reason}")
 
+#PROMPT = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>You are a helpful, concise assistant for locating objects in an image<|eot_id|>" + \
+#         f"<|start_header_id|>user<|end_header_id|><|image|>Is there {OBJECT} on the image? Answer strictly Yes or No<|eot_id|>" + \
+#         "<|start_header_id|>assistant<|end_header_id|>"
+
 PROMPT = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>You are a helpful, concise assistant for locating objects in an image<|eot_id|>" + \
-         f"<|start_header_id|>user<|end_header_id|><|image|>Is there {OBJECT} on the image? Answer strictly Yes or No<|eot_id|>" + \
+         "<|start_header_id|>user<|end_header_id|><|image|>The image id of the {IMGDESC}. Is there {OBJECT} in the image? Answer strictly Yes or No. Then add a new line with one sntence description of the location of the {OBJECT} on the image<|eot_id|>" + \
          "<|start_header_id|>assistant<|end_header_id|>"
 
 #PROMPT = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>You are a helpful, concise assistant for locating objects in an image<|eot_id|>" + \
 #         f"<|start_header_id|>user<|end_header_id|><|image|>Is there {OBJECT} on the image? Answer strictly No if not. Answer Yes and where is it located otherwise. Answer in one sentence.<|eot_id|>" + \
 #         "<|start_header_id|>assistant<|end_header_id|>"
+
+PROMPT1 = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>You are a helpful, concise assistant for locating objects in an image<|eot_id|>" + \
+         "<|start_header_id|>user<|end_header_id|><|image|>Is there {OBJECT} in the image? Answer strictly Yes or No.<|eot_id|>" + \
+         "<|start_header_id|>assistant<|end_header_id|>"
+
+PROMPT2 = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>You are a helpful, concise assistant for locating objects in an image<|eot_id|>" + \
+         "<|start_header_id|>user<|end_header_id|><|image|>Where is the {OBJECT} in the {IMGDESC} image? Answer strictly with its **Location**<|eot_id|>" + \
+         "<|start_header_id|>assistant<|end_header_id|>"
 
 #print(f"\nTrying raw prompt")
 #response = generate(
@@ -59,43 +72,62 @@ PROMPT = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>You are a h
 #)
 #print(response.response)
 
-print("Original 2560x1440")
+#print("Original 2560x1440")
 
-start_time_ms = int(time.time() * 1000)
-for ii in range(4):
-    response = generate(
-        model=MODEL,
-        prompt=PROMPT,
-        images=[images[ii]],
-        options={'temperature': 0.0},
-    )
-    print(f"\nimage {ii}:\n{response.response}")
-end_time_ms = int(time.time() * 1000)
-print(f"That took {((end_time_ms - start_time_ms) / 1000):.2f}")
+#start_time_ms = int(time.time() * 1000)
+#for ii in range(4):
+#    data = { 'OBJECT': OBJECT, 'IMGDESC': desc[ii]}
+#    response = generate(
+#        model=MODEL,
+#        prompt=PROMPT.format(**data),
+#        images=[images[ii]],
+#        options={'temperature': 0.0},
+#    )
+#    print(f"\nimage {ii}:\n{response.response}")
+#end_time_ms = int(time.time() * 1000)
+#print(f"That took {((end_time_ms - start_time_ms) / 1000):.2f}")
 
 print("\n50%% 1280x720")
 start_time_ms = int(time.time() * 1000)
 for ii in range(4):
+    data = { 'OBJECT': OBJECT, 'IMGDESC': desc[ii]}
     response = generate(
         model=MODEL,
-        prompt=PROMPT,
+        prompt=PROMPT1.format(**data),
         images=[images50[ii]],
         options={'temperature': 0.0},
     )
     print(f"\nimage {ii}:\n{response.response}")
+    if "yes" in response.response.lower():
+      response = generate(
+          model=MODEL,
+          prompt=PROMPT2.format(**data),
+          images=[images50[ii]],
+          options={'temperature': 0.0},
+      )
+      print(f"\nimage {ii}:\n{response.response}")
 end_time_ms = int(time.time() * 1000)
 print(f"That took {((end_time_ms - start_time_ms) / 1000):.2f}")
 
 print("\n25%% 640x360")
 start_time_ms = int(time.time() * 1000)
 for ii in range(4):
+    data = { 'OBJECT': OBJECT, 'IMGDESC': desc[ii]}
     response = generate(
         model=MODEL,
-        prompt=PROMPT,
+        prompt=PROMPT1.format(**data),
         images=[images25[ii]],
         options={'temperature': 0.0},
     )
     print(f"\nimage {ii}:\n{response.response}")
+    if "yes" in response.response.lower():
+      response = generate(
+          model=MODEL,
+          prompt=PROMPT2.format(**data),
+          images=[images50[ii]],
+          options={'temperature': 0.0},
+      )
+      print(f"\nimage {ii}:\n{response.response}")
 end_time_ms = int(time.time() * 1000)
 print(f"That took {((end_time_ms - start_time_ms) / 1000):.2f}")
 
