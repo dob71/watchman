@@ -1,5 +1,5 @@
-# Pulls images from the channels. It could be blocked on any request preventing other
-# channels from updating images. It has to be changed to run in a separate thread for each channel.
+# Pulls images from the channels. It forks creating aa separate process for
+# each properly configured channel. Requires a unix system.
 import os
 import sys
 import shutil
@@ -7,6 +7,7 @@ import requests
 import json
 import time
 import base64
+import signal
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -29,7 +30,22 @@ CFGDIR = f"{DATA_DIR}/{CFG_dir}"
 IMGR_CONFIG = f"{CFGDIR}/{CFG_imager}"
 
 # Config dictionary
-CFG={}
+CFG = {}
+# Channel runners (instances of ChannelDownloadRunner)
+CRUN = {}
+# Am I the manager process?
+MANAGER = True
+
+# Check if the process with a given pid is running (assumes the caller can send signal to the process)
+def is_pid_running(pid):
+    if pid <= 0:
+        return False
+    if pid > 0:
+        try:
+            os.kill(pid, 0)
+        except:
+            return False
+    return True
 
 # write json to a file using atomic rename
 def json_atomic_write(js, json_tmp_file_pname, json_file_pname):
@@ -46,7 +62,109 @@ def json_atomic_write(js, json_tmp_file_pname, json_file_pname):
         print(f"{sys._getframe().f_code.co_name}: unable to write {json_tmp_file_pname}")
     return res
 
-# Check config, returns None if nothing new, or new config dictionary
+# Class for handling the image retrieval work for individual channels (forks when run)
+class ChannelDownloadRunner:
+    def __init__(self, ch):
+        self.ch = ch
+        self.chan_id = ch[CFG_chan_id_key]
+        self.upd_int = ch[CFG_chan_upd_int_key]
+        self.pid = -1        
+
+    def __del__(self):
+        if MANAGER and self.pid > 0 and is_pid_running(self.pid):
+            os.kill(self.pid, signal.SIGTERM)
+            for i in range(10):
+                _, status = os.waitpid(self.pid, os.WNOHANG)
+                if os.WIFEXITED(status) or os.WIFSIGNALED(status):
+                    self.pid = -1
+                    break    
+                time.sleep(0.5)
+            if self.pid > 0:
+                os.kill(self.pid, signal.SIGKILL)
+                self.pid = -1
+
+    # Check if the instance process is running
+    def is_running(self):
+        if self.pid > 0:
+            return is_pid_running(self.pid)
+        if self.pid < 0:
+            return False
+        return True # must be the instance running in its own process
+
+    # Handle sigterm signal for the channel image downloader process
+    @staticmethod
+    def signal_handler(signum, frame):
+        print(f"Received SIGTERM, exiting downloader with pid: {os.getpid()}")
+        exit(0)
+
+    # This loop runs in the child process only (no return)
+    def channel_loop(self, iteration):
+        if iteration % self.upd_int != 0:
+            return
+
+        ch = self.ch
+        chan_id = self.chan_id
+        url = ch[CFG_chan_url_key]
+        name = ch[CFG_chan_name_key]
+        img_file = 'image.jpg' # assume JPEG, but the resolution and type should come from the config (and coversion made if necessary)
+        json_file = 'image.json' # where to store image and metadata
+
+        # Download raw
+        img_file_pathname = f"{IMGDIR}/{chan_id}/{img_file}"
+        try:
+            if url.lower().startswith("file://"):
+                src_file = url[len("file://"):]
+                if os.path.isfile(src_file):
+                    shutil.copyfile(src_file, img_file_pathname)
+                else:
+                    print(f"{sys._getframe().f_code.co_name}: error, {src_file} is not a file")
+                    return
+            else:
+                response = requests.get(url, verify=False, stream=True)
+                if response.status_code == 200:
+                    with open(img_file_pathname, "wb") as f:
+                        for chunk in response.iter_content(1024):
+                            f.write(chunk)
+                else:
+                    print(f"{sys._getframe().f_code.co_name}: error {response.status_code} fetching {ch[CFG_chan_name_key]} channel image")
+                    return
+        except:
+            print(f"{sys._getframe().f_code.co_name}: error loading image from {url}")
+            return
+
+        # Construct image JSON file
+        json_file_pname = f"{IMGDIR}/{ch[CFG_chan_id_key]}/{json_file}"
+        json_tmp_file_pname = f"{json_file_pname}.tmp"
+        js = {}
+        js[IMG_chan_key] = chan_id # Channel ID from channel config
+        js[IMG_name_key] = name # Verbal description of the channel
+        js[IMG_data_key] = base64.b64encode(Path(img_file_pathname).read_bytes()).decode() # Image data
+        js[IMG_time_key] = time.time() # will use epoch time as we will likely report differential
+        js[IMG_iter_key] = iteration # might be useful for tracking changes
+        # write file and replace by atomic renaming (requires Unix)
+        json_atomic_write(js, json_tmp_file_pname, json_file_pname)
+
+    def run(self, iteration):
+        global MANAGER
+        self.pid = os.fork()
+        if self.pid < 0:
+            print(f"{sys._getframe().f_code.co_name}: received SIGTERM, exiting downloader {os.getpid()}")
+            return False
+        if self.pid > 0:
+            return True
+        # the below will run in the child process only        
+        MANAGER = False # record that we are the runner (so we do not try to cleanup when terminating)
+        signal.signal(signal.SIGTERM, ChannelDownloadRunner.signal_handler)
+        print(f"Started downloader for channel: {self.chan_id}, pid: {os.getpid()}")
+        while True:
+            start_time_ms = int(time.time() * 1000)
+            self.channel_loop(iteration)
+            iteration += 1
+            end_time_ms = int(time.time() * 1000)
+            if start_time_ms + IMG_poll_int_ms > end_time_ms:
+                time.sleep((start_time_ms + IMG_poll_int_ms - end_time_ms) / 1000.0)
+
+# Check config, returns None if nothing new, or returns the new config dictionary
 # if the config was updated and has to be re-applied.
 def read_config():
     global CFG
@@ -73,12 +191,18 @@ def read_config():
 # Read and apply config if new, return False if no changes
 def read_and_apply_config():
     global CFG
+    global CRUN
+
     new_cfg = read_config()
     if not new_cfg:
         return False
     CFG = new_cfg
 
-    # Remove all the old image folder (if there) and create a new one for the new config
+    # Destroy the runner instances (kills all the downloader processes)
+    for c_runner in CRUN:
+        del c_runner
+
+    # Remove all the old image folder (if there) and create a new empty one for the new config
     shutil.rmtree(IMGDIR, ignore_errors=True)
     os.makedirs(IMGDIR, exist_ok=True)
 
@@ -91,7 +215,6 @@ def read_and_apply_config():
     channels = []
     for idx, ch in enumerate(orig_channels):
         # Check for the required fields in the channel object
-        CFG_chan_id = 'channel'
         if not CFG_chan_id_key in ch.keys():
             print(f"{sys._getframe().f_code.co_name}: malformed config, no \"{CFG_chan_id_key}\" key in channels entry {idx}")
             continue
@@ -109,58 +232,34 @@ def read_and_apply_config():
         except ValueError:
             print(f"{sys._getframe().f_code.co_name}: cannot convert {CFG_chan_upd_int_key} to int \"{ch[CFG_chan_upd_int_key]}\" in channels entry {idx}")
             continue
+        chan_id = ch[CFG_chan_id_key]
         try:
-            os.mkdir(f"{IMGDIR}/{ch[CFG_chan_id_key]}")
+            os.mkdir(f"{IMGDIR}/{chan_id}")
         except:
-            print(f"{sys._getframe().f_code.co_name}: unable to create \"{CFG_chan_name_key}\" key in channels entry {idx}")
+            print(f"{sys._getframe().f_code.co_name}: unable to create \"{IMGDIR}/{chan_id}\" folder")
             continue
+        CRUN[chan_id] = ChannelDownloadRunner(ch)
         channels.append(ch)
+
     CFG[CFG_channels_key] = channels
     return True
 
-# Main loop (called once in IMG_poll_int_ms, might be called back-to-back if blocked for too long)
+# Main loop (see below, called once in IMG_poll_int_ms)
 def main_loop(iteration):
     global CFG
+    global CRUN
     # Pull images from channels, jasonify and put into the channel folders
     # Store a raw version for debugging/visualization purposes
     channels = CFG[CFG_channels_key]
     for idx, ch in enumerate(channels):
         chan_id = ch[CFG_chan_id_key]
-        url = ch[CFG_chan_url_key]
-        name = ch[CFG_chan_name_key]
-        upd_int = ch[CFG_chan_upd_int_key]
-        img_file = 'image.jpg' # assume JPEG, but the resolution and type should come from the config (and coversion made if necessary)
-        json_file = 'image.json' # where to store image and metadata
-
-        # Try to spread downloads over to different iterations if intervals allow that
-        if (iteration + idx) % upd_int != 0:
-            continue
-
-        # Download raw
-        img_file_pathname = f"{IMGDIR}/{chan_id}/{img_file}"
-        response = requests.get(url, verify=False, stream=True)
-        if response.status_code == 200:
-            with open(img_file_pathname, "wb") as f:
-                for chunk in response.iter_content(1024):
-                    f.write(chunk)
-        else:
-            print(f"{sys._getframe().f_code.co_name}: error {response.status_code} fetching {ch[CFG_chan_name_key]} channel image")
-
-        # Construct image JSON file
-        json_file_pname = f"{IMGDIR}/{ch[CFG_chan_id_key]}/{json_file}"
-        json_tmp_file_pname = f"{json_file_pname}.tmp"
-        js = {}
-        js[IMG_chan_key] = chan_id # Channel ID from channel config
-        js[IMG_name_key] = name # Verbal description of the channel
-        js[IMG_data_key] = base64.b64encode(Path(img_file_pathname).read_bytes()).decode() # Image data
-        js[IMG_time_key] = time.time() # will use epoch time as we will likely report differential
-        js[IMG_iter_key] = iteration # might be useful for tracking changes
-        # write file and replace by atomic renaming (reqires Unix)
-        json_atomic_write(js, json_tmp_file_pname, json_file_pname)
+        c_runner = CRUN[chan_id]
+        if not c_runner.is_running():
+            c_runner.run(iteration + idx) # offset iteration by idx to help spread downloads
     return
 
-# Run the main loop
-loop_interval = IMG_poll_int_ms
+# Run the main loop. It's responsible for watching sources config file, loading it,
+# then kicking off and monitoring the individual channel image downloader loops.
 iteration = 0
 while True:
     start_time_ms = int(time.time() * 1000)
@@ -168,6 +267,5 @@ while True:
     main_loop(iteration)
     iteration += 1
     end_time_ms = int(time.time() * 1000)
-    if start_time_ms + loop_interval > end_time_ms:
-        time.sleep((start_time_ms + loop_interval - end_time_ms) / 1000.0)
-
+    if start_time_ms + IMG_poll_int_ms > end_time_ms:
+        time.sleep((start_time_ms + IMG_poll_int_ms - end_time_ms) / 1000.0)
