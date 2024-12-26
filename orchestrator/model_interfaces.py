@@ -43,7 +43,7 @@ class OllamaSimpleInterface:
         msg = None
         if rsp.done and "yes" in rsp.response.lower():
             ret = True
-            msg = f"{image_desc}"
+            msg = f""
         return ret, msg
 
 class OllamaComplexInterface:
@@ -75,7 +75,7 @@ class OllamaComplexInterface:
     # returns: tuple with the True/False for the detection result and a string with the verbal description of the location
     def locate(self, image_data, obj_desc, image_desc):
         prompt = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>You are a helpful, concise assistant for locating objects in an image<|eot_id|>" + \
-                f"<|start_header_id|>user<|end_header_id|><|image|>The image id of the {image_desc}. Is there {obj_desc} on the image? Answer strictly Yes or No on the first line. On the next line provide a short description of the location {obj_desc} location on the image<|eot_id|>" + \
+                f"<|start_header_id|>user<|end_header_id|><|image|>Is there {obj_desc} on this image of the {image_desc}? Answer strictly Yes or No.<|eot_id|>" + \
                 "<|start_header_id|>assistant<|end_header_id|>"
         rsp = generate(
             model=self.model_to_use,
@@ -103,6 +103,6 @@ class OllamaComplexInterface:
 
 # add your class name and class object mappping here
 MODELS = {
-    OllamaSimpleInterface.model_name: OllamaSimpleInterface,
-    OllamaComplexInterface.model_name: OllamaComplexInterface,
+    OllamaSimpleInterface.model_name(): OllamaSimpleInterface,
+    OllamaComplexInterface.model_name(): OllamaComplexInterface,
 }

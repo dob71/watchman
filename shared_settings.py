@@ -61,6 +61,7 @@ EVT_c_name_key = "c_name"   # event channel name (for use in speech)
 EVT_in_time_key = "in_time" # epoch time when the event was reported
 EVT_msg_key = "msg"         # message to play for the event
 EVT_alrt_mute_time_key = "mtime" # for alerts only, time in seconds mute after reporting
+EVT_img_data = "img_data"   # for debugging, include the image data related to the event
 
 # Individual object of interest config schema (it's getting complex, so better use schema for validation)
 CFG_obj_schema = {
