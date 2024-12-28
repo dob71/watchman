@@ -1,4 +1,5 @@
-TBD
+To run the UI manually:
+  streamlit run ui/main.py
 
 The examples of the config files:
 
