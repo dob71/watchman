@@ -7,8 +7,11 @@ WORKDIR /
 # Copy the current directory contents into the container at /ui
 COPY . /ui
 
+# Make relevant directories to allow app to run
+RUN mkdir -p /home/user/capstone/watchman/imager
+
 # Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r /ui/requirements.txt
 
 # Make port 80 available to the world outside this container
 # EXPOSE 8080

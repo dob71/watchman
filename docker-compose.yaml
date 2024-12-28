@@ -63,7 +63,7 @@ services:
     image: ui-image
     container_name: ui-container
     ports:
-      - "8080:8080"
+      - "8501:8501"
     volumes:
       - ${DATA_DIR:-.}/images:/images
       - ${DATA_DIR:-.}/sysconfig:/sysconfig

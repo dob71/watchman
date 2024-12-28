@@ -7,6 +7,7 @@ from io import BytesIO
 from streamlit_mic_recorder import speech_to_text
 
 import json
+import os
 
 # Path where test image would be saved
 test_save_path = "/home/user/capstone/.data/images/captured_test_image.jpg"
@@ -18,7 +19,7 @@ imager_sources_json_path = "/home/user/capstone/watchman/imager/sources.json"
 # Create sources.json file
 def output_sources_json(channel_input, name_input, url_input, slider_input):
     channels = list()
-    for i in range(4):
+    for i in range(len(channel_input)):
         channels.append(
             {
                 "channel": channel_input[i],
@@ -44,6 +45,30 @@ def output_sources_json(channel_input, name_input, url_input, slider_input):
     # Print the JSON output
     print(output_json)
 
+# Read sources.json to pre-populate the values in the input boxes
+# Return the number of channels which is determined by the number of entries in sources.json.
+def read_sources_json(channel_input, name_input, url_input, slider_input):
+    if not os.path.exists(imager_sources_json_path):
+        # Provide default data as a fallback when sources.json does not exist
+        for i in range(4):
+            channel_input.append("porch")
+            name_input.append("Porch")
+            url_input.append("http://192.168.0.10/cgi-bin/api.cgi?cmd=Snap&width=1280&height=720&channel=0")
+            slider_input.append(2)
+    else:
+        with open(imager_sources_json_path, "r") as file:
+            data = json.load(file)
+
+            # Populate the lists
+            for channel in data['channels']:
+                channel_input.append(channel['channel'])
+                name_input.append(channel['name'])
+                url_input.append(channel['url'])
+                slider_input.append(channel['upd_int'])
+    
+    return len(channel_input)
+
+# Collect the voice query, notify orchestrator and output results
 def collect_speech(test_mode):
     text = speech_to_text(
         language='en',
@@ -76,7 +101,7 @@ def collect_speech(test_mode):
 #      |
 #      --> test
 if __name__ == "__main__":
-    st.write("Watchman")
+    st.title("Watchman")
     if "app_state" not in st.session_state:
         def streaming_callback():
             st.session_state.app_state = "streaming_configure"
@@ -92,18 +117,21 @@ if __name__ == "__main__":
             st.form_submit_button(label='Test using a single image', on_click=test_callback)
 
     elif st.session_state.app_state == "streaming_configure":
-        st.write("Streaming mode configuration")
+        st.header("Streaming mode configuration")
 
         with st.form(key='streaming_configure_form'):
             channel_input = list()
             name_input = list()
             url_input = list()
             slider_input = list()
-            for i in range(4):
-                channel_input.append(st.text_input("Channel "+str(i), key="channel"+str(i)))
-                name_input.append(st.text_input("Name "+str(i), key="name"+str(i)))
-                url_input.append(st.text_input("Url "+str(i), key="url"+str(i)))
-                slider_input.append(st.slider('Update interval '+str(i), 0, 10, 3, key='upd_int'+str(i)))
+
+            num_channels = read_sources_json(channel_input, name_input, url_input, slider_input)
+
+            for i in range(num_channels):
+                channel_input[i] = st.text_input("Channel "+str(i), key="channel"+str(i), value=channel_input[i])
+                name_input[i] = st.text_input("Name "+str(i), key="name"+str(i), value=name_input[i])
+                url_input[i] = st.text_input("Url "+str(i), key="url"+str(i), value=url_input[i])
+                slider_input[i] = st.slider('Update interval '+str(i), 0, 10, slider_input[i], key='upd_int'+str(i))
 
             submit = st.form_submit_button(label='Confirm configuration')
             if submit:
@@ -113,7 +141,7 @@ if __name__ == "__main__":
                 st.rerun()
 
     elif st.session_state.app_state == "streaming_run":
-        st.write("Streaming mode")
+        st.header("Streaming mode")
         collect_speech(test_mode = False)
 
     elif st.session_state.app_state == "test":
@@ -134,7 +162,7 @@ if __name__ == "__main__":
                 print("Invalid image file")
                 st.session_state.clicked = False
                 
-        st.write("Test mode")
+        st.header("Test mode")
         if "test_form_enabled" not in st.session_state:
             st.session_state.test_form_enabled = True
 
