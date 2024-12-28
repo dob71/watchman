@@ -27,6 +27,7 @@ CFG_obj_svcs_key = "obj_svcs"    # list of services (only location and alert for
 # allowed service names
 CFG_loc_svc_name = "location"    # name of the location service (used to generate name of files in the events folder)
 CFG_alrt_svc_name = "alert"      # name of the alert service (used to generate name of files in the events folder)
+CFG_dset_svc_name = "dataset"    # for debugging, can be used to collect info on positive detection hits for future fine-tuning
 # keys for use in service entries under object
 CFG_osvc_name_key = "osvc_name"  # name of the service (CFG_loc_svc_name, CFG_alrt_svc_name)
 CFG_osvc_msgtpl_key = "msgtpl"   # template of the verbal message to send to Alexa for the service
@@ -36,6 +37,7 @@ CFG_osvc_age_out_key = "age_out" # number of seconds after which to remove the e
 CFG_osvc_skip_chan_key = "skip_ch"# list of channel IDs to skip this service on (optional key)
 CFG_osvc_mtime_key = "mute_time" # number of seconds to mute the alert after issuing it (for alert service only, i.e. optional key)
 CFG_osvc_def_off_key = "def_off" # true to have the service off by default (ask Alexa to turn on when needed)
+CFG_osvc_pname_key = "pname"     # for debugging purposes (used w/ special "dataset" service for capturing all positive detection results)
 
 # Imager values that are shared
 IMG_poll_int_ms = 1000 # how often to the imager loop is called
@@ -61,7 +63,6 @@ EVT_c_name_key = "c_name"   # event channel name (for use in speech)
 EVT_in_time_key = "in_time" # epoch time when the event was reported
 EVT_msg_key = "msg"         # message to play for the event
 EVT_alrt_mute_time_key = "mtime" # for alerts only, time in seconds mute after reporting
-EVT_img_data = "img_data"   # for debugging, include the image data related to the event
 
 # Individual object of interest config schema (it's getting complex, so better use schema for validation)
 CFG_obj_schema = {
@@ -72,7 +73,7 @@ CFG_obj_schema = {
         CFG_obj_desc_key: {"type": "string"},
         CFG_obj_svcs_key: {"type": "array", "items": 
             {"type": "object", "properties": {
-                CFG_osvc_name_key: {"type": "string", "enum": [CFG_loc_svc_name, CFG_alrt_svc_name]},
+                CFG_osvc_name_key: {"type": "string", "enum": [CFG_loc_svc_name, CFG_alrt_svc_name, CFG_dset_svc_name]},
                 CFG_osvc_msgtpl_key: {"type": "string"},
                 CFG_osvc_age_out_key: {"type": "integer", "minimum": 0},
                 CFG_osvc_def_off_key: {"type": "boolean"},

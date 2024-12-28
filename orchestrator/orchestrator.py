@@ -191,21 +191,45 @@ class ChannelOrchestrator:
             return False
         return True
 
+    # Handle capturing images and results for the positive detection in the dataset folder
+    def dataset_capture(self, obj_id, e):
+        dataset_path = "./.data/dataset" if not CFG_osvc_pname_key in e.keys() else e[CFG_osvc_pname_key]
+        dataset_folder = f"{dataset_path}/{self.chan_id}/{obj_id}"
+        index = 1
+        index_min = 1
+        index_max = 1000
+        while index_min < index_max:
+            if os.path.exists(f"{dataset_folder}/{index}"):
+                index_min = index + 1
+            elif index > 1 and not os.path.exists(f"{dataset_folder}/{index - 1}"):
+                index_max = index
+            else:
+                break
+            index = (index_min + index_max) >> 1
+        dataset_folder = f"{dataset_folder}/{index}"
+        os.makedirs(dataset_folder, exist_ok=True)
+        obj_svc_img_file = f"{dataset_folder}/image.jpg"
+        Path(obj_svc_img_file).write_bytes(self.img_data)
+        with open(f"{dataset_folder}/data.json", "w") as f:
+            json.dump(e, f)
+
     # All the info is collected and ready, generate the service data files.
     def loop_run_update(self, obj_js, e_list):
         obj_id = obj_js[EVT_obj_id_key]
         obj_dir =  f"{EVTDIR}/{self.chan}/{obj_id}"
         for e in e_list:
-            # For debugging, and fine tuning it migh tbe useful to capture the image
-            # that triggered the event.
-            if EVT_img_data in e.keys():
-                obj_svc_img_file = f"{obj_dir}/{e[EVT_osvc_key]}.jpg"
-                Path(obj_svc_img_file).write_bytes(e[EVT_img_data])
-                del e[EVT_img_data] # Note: already decoded, don't try to save in JSON
+            # For debugging, and fine tuning it migh tbe useful to capture the images and inference results.
+            # There's a special sevice "dataset" created for that purpose
+            if e[EVT_osvc_key] == CFG_dset_svc_name:
+                self.dataset_capture(obj_id, e)
+                continue
             # Make the event JSON file
             obj_svc_file = f"{obj_dir}/{e[EVT_osvc_key]}.json"
             obj_svc_tmp_file = f"{obj_svc_file}.tmp"
             json_atomic_write(e, obj_svc_tmp_file, obj_svc_file)
+            # It's helpful when the image is here too
+            obj_svc_img_file = f"{obj_dir}/{e[EVT_osvc_key]}.jpg"
+            Path(obj_svc_img_file).write_bytes(self.img_data)
         return e_list
 
     # Run detection on one of the objects in the channel image, and generate messages for reporting
@@ -217,7 +241,11 @@ class ChannelOrchestrator:
         # technically, it makes sense to have processing tuned for each service, but for efficiency
         # we do inference for the object described by obj_desc once, then use message templates to
         # tweak the results to the purpose of the specific service.
-        res, loc_msg = MODEL.locate(self.img_data, obj_desc, self.chan_name)
+        try: 
+            res, loc_msg = MODEL.locate(self.img_data, obj_desc, self.chan_name)
+        except Exception as e:
+            print(f"{sys._getframe().f_code.co_name}: {MODEL.model_name()} error:", e)
+            res = False
         if not res:
             return [] # object is not on the image or no result
         # update event services objects w/ the inference data
@@ -226,7 +254,6 @@ class ChannelOrchestrator:
             d = {'LOCATION': loc_msg, 'CHANNEL': self.chan_name, 'OBJNAME': obj_name}
             msg = re.sub(r'\[([^\]]*)\]', lambda x:d.get(x.group(1)) if x.group(1) in d.keys() else f"[{x.group(1)}]", e[EVT_msg_key])
             e[EVT_msg_key] = msg
-            e[EVT_img_data] = self.img_data
         return e_list
 
     # Prepare object events folder and handle service files
