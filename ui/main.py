@@ -54,7 +54,7 @@ def read_sources_json(channel_input, name_input, url_input, slider_input):
             channel_input.append("porch")
             name_input.append("Porch")
             url_input.append("http://192.168.0.10/cgi-bin/api.cgi?cmd=Snap&width=1280&height=720&channel=0")
-            slider_input.append(2)
+            slider_input.append(3)
     else:
         with open(imager_sources_json_path, "r") as file:
             data = json.load(file)
@@ -69,7 +69,7 @@ def read_sources_json(channel_input, name_input, url_input, slider_input):
     return len(channel_input)
 
 # Collect the voice query, notify orchestrator and output results
-def collect_speech(test_mode):
+def collect_and_process_query(test_mode):
     text = speech_to_text(
         language='en',
         start_prompt="Press to record voice query",
@@ -94,7 +94,23 @@ def collect_speech(test_mode):
             st.audio(sound_file)
     else:
         st.write("No voice query recorded")
-    
+
+# Add an extra source channel
+def add_channel(channel_input, name_input, url_input, slider_input):
+    channel_input.append("")
+    name_input.append("")
+    url_input.append("")
+    slider_input.append(3)
+    st.session_state.num_channels += 1
+
+# Remove the last source channel from existing ones
+def remove_channel(channel_input, name_input, url_input, slider_input):
+    if st.session_state.num_channels > 1:  #keep one channel at a minimum
+        channel_input.pop()
+        name_input.pop()
+        url_input.pop()
+        slider_input.pop()
+        st.session_state.num_channels -= 1
 
 # Main application state machine
 # initial state -> streaming_configure -> streaming_run
@@ -109,40 +125,59 @@ if __name__ == "__main__":
         def test_callback():
             st.session_state.app_state = "test"
 
-        def configure_callback():
-            st.session_state.app_state = "streaming_run"
-
         with st.form(key='mode_form'):
             st.form_submit_button(label='Streaming mode', on_click=streaming_callback)
             st.form_submit_button(label='Test using a single image', on_click=test_callback)
 
     elif st.session_state.app_state == "streaming_configure":
         st.header("Streaming mode configuration")
+        if "num_channels" not in st.session_state:
+            st.session_state.num_channels = 0
 
         with st.form(key='streaming_configure_form'):
-            channel_input = list()
-            name_input = list()
-            url_input = list()
-            slider_input = list()
+            if st.session_state.num_channels == 0:
+                st.session_state.channel_input = list()
+                st.session_state.name_input = list()
+                st.session_state.url_input = list()
+                st.session_state.slider_input = list()
 
-            num_channels = read_sources_json(channel_input, name_input, url_input, slider_input)
+                st.session_state.num_channels = read_sources_json(st.session_state.channel_input,
+                                                                  st.session_state.name_input,
+                                                                  st.session_state.url_input,
+                                                                  st.session_state.slider_input)
 
-            for i in range(num_channels):
-                channel_input[i] = st.text_input("Channel "+str(i), key="channel"+str(i), value=channel_input[i])
-                name_input[i] = st.text_input("Name "+str(i), key="name"+str(i), value=name_input[i])
-                url_input[i] = st.text_input("Url "+str(i), key="url"+str(i), value=url_input[i])
-                slider_input[i] = st.slider('Update interval '+str(i), 0, 10, slider_input[i], key='upd_int'+str(i))
+            for i in range(st.session_state.num_channels):
+                st.session_state.channel_input[i] = st.text_input("Channel "+str(i), key="channel"+str(i), value=st.session_state.channel_input[i])
+                st.session_state.name_input[i] = st.text_input("Name "+str(i), key="name"+str(i), value=st.session_state.name_input[i])
+                st.session_state.url_input[i] = st.text_input("Url "+str(i), key="url"+str(i), value=st.session_state.url_input[i])
+                st.session_state.slider_input[i] = st.slider('Update interval '+str(i), 0, 10, st.session_state.slider_input[i], key='upd_int'+str(i))
 
-            submit = st.form_submit_button(label='Confirm configuration')
-            if submit:
-                print("Streaming mode: Producing json file and sending all inputs to orchestrator")
-                output_sources_json(channel_input, name_input, url_input, slider_input)
+            if st.form_submit_button(label='Add channel'):
+                add_channel(st.session_state.channel_input,
+                            st.session_state.name_input,
+                            st.session_state.url_input,
+                            st.session_state.slider_input)
+                st.rerun()  # Rerun to reflect changes immediately
+
+            if st.form_submit_button(label='Remove channel'):
+                remove_channel(st.session_state.channel_input,
+                               st.session_state.name_input,
+                               st.session_state.url_input,
+                               st.session_state.slider_input)
+                st.rerun()  # Rerun to reflect changes immediately
+
+            if st.form_submit_button(label='Confirm configuration', type='primary'):
+                print("Streaming mode: Producing json file")
+                output_sources_json(st.session_state.channel_input,
+                                    st.session_state.name_input,
+                                    st.session_state.url_input,
+                                    st.session_state.slider_input)
                 st.session_state.app_state = "streaming_run"
                 st.rerun()
 
     elif st.session_state.app_state == "streaming_run":
         st.header("Streaming mode")
-        collect_speech(test_mode = False)
+        collect_and_process_query(test_mode = False)
 
     elif st.session_state.app_state == "test":
 
@@ -198,6 +233,6 @@ if __name__ == "__main__":
                         st.session_state.clicked = False
 
         if 'uploaded_file' in st.session_state and st.session_state.uploaded_file is not None:
-            collect_speech(test_mode = True)
+            collect_and_process_query(test_mode = True)
     else:
         st.write("Unexpected error occurred.")
