@@ -262,11 +262,15 @@ class ChannelOrchestrator:
         obj_names = o[CFG_obj_names_key]
         obj_desc = o[CFG_obj_desc_key]
         obj_svcs = o[CFG_obj_svcs_key]
-        # prep object of interest event info json
+        obj_osvc_list = [ s[CFG_osvc_name_key] for s in obj_svcs if self.chan_id not in o.get(CFG_osvc_skip_chan_key, []) ]
+        # Prep event's object of interest info json
         obj_js = {
             EVT_obj_id_key: obj_id,
             EVT_obj_names_key: obj_names,
             EVT_obj_desc_key: obj_desc,
+            EVT_osvc_list_key: obj_osvc_list,
+            EVT_obj_cname_key: self.chan_name,
+            EVT_obj_cid_key: self.chan_id,
         }
         # Object events directory
         obj_dir =  f"{EVTDIR}/{self.chan}/{obj_id}"

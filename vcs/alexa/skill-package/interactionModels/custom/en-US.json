@@ -1,0 +1,261 @@
+{
+  "interactionModel": {
+    "modelConfiguration": {
+      "fallbackIntentSensitivity": {
+        "level": "LOW"
+      }
+    },
+    "languageModel": {
+      "intents": [
+        {
+          "name": "AMAZON.CancelIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.HelpIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.StopIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.NavigateHomeIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.FallbackIntent",
+          "samples": []
+        },
+        {
+          "name": "WhereIsItIntent",
+          "slots": [{ "name": "object", "type": "AMAZON.SearchQuery" }],
+          "samples": ["find {object}", "have you seen {object}", "did you see {object}", "locate {object}", "where is {object}"]
+        },
+        {
+          "name": "WhereIsItNamedIntent",
+          "slots": [{ "name": "objectname", "type": "ObjectNameType" }],
+          "samples": ["find {objectname}", "have you seen {objectname}", "did you see {objectname}", "locate {objectname}", "where is {objectname}"]
+        },
+        {
+          "name": "ListIntent",
+          "slots": [{"name": "component", "type": "ListComponentName", "samples": ["just {component}", "{component}"]}],
+          "samples": ["list {component}", "list"]
+        }, 
+        {
+          "name": "ServiceObjectChannelControlIntent",
+          "slots": [
+            { "name": "operation", "type": "ServiceOperationsType" },
+            { "name": "service", "type": "ServiceType", "samples": ["{service}", "{service} service", "{service} tracking"] },
+            { "name": "objectname", "type": "ObjectNameType", "samples": ["{objectname}"] },
+            { "name": "channelname", "type": "ChannelNameType", "samples": ["{channelname}"]}
+          ],
+          "samples": [
+            "{operation}",
+            "{operation} {service}",
+            "{operation} {service} {objectname}",
+            "{operation} {service} {channelname}",
+            "{operation} {service} on channel {channelname}",
+            "{operation} {service} on camera {channelname}",
+            "{operation} {service} on {channelname}",
+            "{operation} {service} on {channelname} channel",
+            "{operation} {service} on {channelname} camera",
+            "{operation} {service} on {channelname} channels",
+            "{operation} {service} on {channelname} cameras",
+            "{operation} {service} for {objectname}",
+            "{operation} {service} for {objectname} on {channelname}",
+            "{operation} {service} for {objectname} on channel {channelname}",
+            "{operation} {service} for {objectname} on {channelname} channel",
+            "{operation} {service} for {objectname} on {channelname} channels",
+            "{operation} {service} for {objectname} on camera {channelname}",
+            "{operation} {service} for {objectname} on {channelname} camera",
+            "{operation} {service} for {objectname} on {channelname} cameras",
+            "{operation} {service} on camera {channelname} for {objectname}",
+            "{operation} {service} on channel {channelname} for {objectname}",
+            "{operation} {service} on {channelname} for {objectname}",
+            "{operation} {service} on {channelname} channels for {objectname}",
+            "{operation} {service} on {channelname} cameras for {objectname}",
+            "{operation} {service} on {channelname} channel for {objectname}",
+            "{operation} {service} on {channelname} camera for {objectname}",
+            "{operation} {service} service",
+            "{operation} {service} service {objectname}",
+            "{operation} {service} service for {objectname} on channel {channelname}",
+            "{operation} {service} service for {objectname} on {channelname} channel",
+            "{operation} {service} service for {objectname} on {channelname} channels",
+            "{operation} {service} service for {objectname} on camera {channelname}",
+            "{operation} {service} service for {objectname} on {channelname} camera",
+            "{operation} {service} service for {objectname} on {channelname} cameras",
+            "{operation} {service} service on camera {channelname} for {objectname}",
+            "{operation} {service} service on channel {channelname} for {objectname}",
+            "{operation} {service} service on {channelname} for {objectname}",
+            "{operation} {service} service on {channelname} camera for {objectname}",
+            "{operation} {service} service on {channelname} channel for {objectname}",
+            "{operation} {service} service on {channelname} cameras for {objectname}",
+            "{operation} {service} service on {channelname} channels for {objectname}",
+            "{operation} {service} services",
+            "{operation} {service} services {objectname}",
+            "{operation} {service} services for {objectname} on channel {channelname}",
+            "{operation} {service} services for {objectname} on {channelname} channel",
+            "{operation} {service} services for {objectname} on {channelname} channels",
+            "{operation} {service} services for {objectname} on camera {channelname}",
+            "{operation} {service} services for {objectname} on {channelname} camera",
+            "{operation} {service} services for {objectname} on {channelname} cameras",
+            "{operation} {service} services on camera {channelname} for {objectname}",
+            "{operation} {service} services on channel {channelname} for {objectname}",
+            "{operation} {service} services on {channelname} for {objectname}",
+            "{operation} {service} services on {channelname} camera for {objectname}",
+            "{operation} {service} services on {channelname} channel for {objectname}",
+            "{operation} {service} services on {channelname} cameras for {objectname}",
+            "{operation} {service} services on {channelname} channels for {objectname}",
+            "{operation} {service} tracking",
+            "{operation} {service} tracking {objectname}",
+            "{operation} {service} tracking for {objectname} on channel {channelname}",
+            "{operation} {service} tracking for {objectname} on {channelname} channel",
+            "{operation} {service} tracking for {objectname} on {channelname} channels",
+            "{operation} {service} tracking for {objectname} on camera {channelname}",
+            "{operation} {service} tracking for {objectname} on {channelname} camera",
+            "{operation} {service} tracking for {objectname} on {channelname} cameras",
+            "{operation} {service} tracking on camera {channelname} for {objectname}",
+            "{operation} {service} tracking on channel {channelname} for {objectname}",
+            "{operation} {service} tracking on {channelname} for {objectname}",
+            "{operation} {service} tracking on {channelname} camera for {objectname}",
+            "{operation} {service} tracking on {channelname} channel for {objectname}",
+            "{operation} {service} tracking on {channelname} cameras for {objectname}",
+            "{operation} {service} tracking on {channelname} channels for {objectname}"
+          ]
+        }, 
+        {
+          "name": "WeAreDoneIntent",
+          "slots": [],
+          "samples": ["fine", "thank you", "ok bye", "ok fine", "bye", "that's it", "we are done", "see you", "see ya"]
+        }
+      ],
+      "types": [
+        {
+          "name": "ObjectNameType",
+          "values": [
+            {"id": "everything", "name": {"value": "everything", "synonyms": ["everything", "anything"]}}
+          ]
+        },
+        {
+          "name": "ListComponentName",
+          "values": [
+            {"id": "objects", "name": { "value": "objects", "synonyms": ["objects", "things", "objects of interest", "can you monitor"]}},
+            {"id": "channels", "name": { "value": "channels", "synonyms": ["video feeds", "cameras", "input channels", "are you watching"]}}
+          ]
+        },
+        {
+          "name": "ServiceOperationsType",
+          "values": [
+            {"id": "enable", "name": {"value": "enable", "synonyms": ["turn on"] }},
+            {"id": "disable", "name": {"value": "disable", "synonyms": ["turn off"] }}
+          ]
+        }, 
+        {
+          "name": "ServiceType",
+          "values": [
+            {"id": "alert", "name": {"value": "alert", "synonyms": ["alerts"]}},
+            {"id": "location", "name": {"value": "location", "synonyms": ["location"]}}
+          ]
+        },
+        {
+          "name": "ChannelNameType",
+          "values": [
+            {"id": "all", "name": {"value": "all", "synonyms": ["all", "everywhere"]}}
+          ]
+        }
+      ],
+      "invocationName": "my watchman"
+    },
+    "dialog": {
+      "intents": [
+          {
+              "name": "ServiceObjectChannelControlIntent",
+              "delegationStrategy": "SKILL_RESPONSE",
+              "confirmationRequired": false,
+              "prompts": {},
+              "slots": [
+                  { "name": "operation", "type": "ServiceOperationsType", "confirmationRequired": false, "elicitationRequired": false,
+                    "validations": [
+                      {"type": "hasEntityResolutionMatch", "prompt": "Slot.Validation.enable-disable"}
+                    ]
+                  },
+                  { "name": "service", "type": "ServiceType", "confirmationRequired": false, "elicitationRequired": true, 
+                      "prompts": { "elicitation": "Elicit.Slot.service-type" },
+                      "validations": [
+                        {"type": "hasEntityResolutionMatch", "prompt": "Slot.Validation.service-type"}
+                      ]
+                  },
+                  { "name": "objectname", "type": "ObjectNameType", "confirmationRequired": false, "elicitationRequired": true, 
+                      "prompts": { "elicitation": "Elicit.Slot.object-type" },
+                      "validations": []
+                  },
+                  { "name": "channelname", "type": "ChannelNameType", "confirmationRequired": false, "elicitationRequired": true,
+                      "prompts": { "elicitation": "Elicit.Slot.channel-type" },
+                      "validations": []
+                  }
+              ]
+          },
+          {
+            "name": "ListIntent",
+            "delegationStrategy": "ALWAYS",
+            "confirmationRequired": false,
+            "prompts": {},
+            "slots": [
+                { "name": "component", "type": "ListComponentName", "confirmationRequired": false, "elicitationRequired": true, 
+                    "prompts": { "elicitation": "Elicit.Slot.component-type" },
+                    "validations": [
+                      {"type": "hasEntityResolutionMatch", "prompt": "Slot.Validation.component-type"}
+                    ]
+                }
+              ]
+          }
+      ],
+      "delegationStrategy": "ALWAYS"
+    },
+    "prompts": [
+        {
+            "id": "Elicit.Slot.service-type",
+            "variations": [
+                {"type": "PlainText", "value": "I can {operation} alerts or location services, which one would you like me to {operation}?"}
+            ]
+        },
+        {
+            "id": "Slot.Validation.service-type",
+            "variations": [
+                {"type": "PlainText", "value": "I can't {operation} {service}, I can only {operation} alerts or location services, which one would you like me to {operation}?" }
+            ]
+        }, 
+        {
+          "id": "Elicit.Slot.object-type",
+          "variations": [
+              {"type": "PlainText", "value": "For which object should I {operation} {service}? You can ask me to list objects if unsure."}
+          ]
+        },
+        {
+          "id": "Elicit.Slot.channel-type",
+          "variations": [
+              {"type": "PlainText", "value": "On what channel should I {operation} {service}? You can ask me to list channels if unsure."}
+          ]
+        },
+        {
+          "id": "Elicit.Slot.component-type",
+          "variations": [
+              {"type": "PlainText", "value": "I can list channels or objects. What should I list?"}
+          ]
+        },
+        {
+            "id": "Slot.Validation.component-type",
+            "variations": [
+                {"type": "PlainText", "value": "I can't list {component}, I can only list channels or objects." }
+            ]
+        }, 
+        {
+            "id": "Slot.Validation.enable-disable",
+            "variations": [
+                {"type": "PlainText", "value": "Can onlly enable or disable something." }
+            ]
+        }
+    ]
+  }
+}

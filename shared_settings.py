@@ -33,7 +33,7 @@ CFG_dset_svc_name = "dataset"    # for debugging, can be used to collect info on
 CFG_osvc_name_key = "osvc_name"  # name of the service (CFG_loc_svc_name, CFG_alrt_svc_name)
 CFG_osvc_msgtpl_key = "msgtpl"   # template of the verbal message to send to Alexa for the service
                                  # [LOCATION] - location description, [CHANNEL] - channel name, [OBJNAME] - first name from CFG_obj_names_key list
-                                 # [TIMEAGO] - how log ago (TBD), [OBJECT] - object name as was in the question (TBD)
+                                 # [TIMEAGO] - how log ago, [OBJECT] - object name as was in the question
 CFG_osvc_age_out_key = "age_out" # number of seconds after which to remove the event file for this service
 CFG_osvc_skip_chan_key = "skip_ch"# list of channel IDs to skip this service on (optional key)
 CFG_osvc_mtime_key = "mute_time" # number of seconds to mute the alert after issuing it (for alert service only, i.e. optional key)
@@ -43,6 +43,8 @@ CFG_osvc_pname_key = "pname"     # for debugging purposes (used w/ special "data
 # Imager values that are shared
 IMG_poll_int_ms = 1000 # how often to the imager loop is called
 IMG_json_file_name = 'image.json' # name of the JSON file w/ image data under the channel folder
+IMG_off_file_name = 'image.off'   # name of the file that stops imager from polling from channel URL
+IMG_file_name = 'image.jpg'  # where to store raw image for debugging
 IMG_dir = 'images'     # locaton of the imager folder
 IMG_chan_key = 'cid'   # Channel ID key
 IMG_name_key = 'name'  # Verbal description of the channel
@@ -56,10 +58,13 @@ ORCH_poll_int_ms = 500 # for alerts it might be useful to keep this low
 EVT_dir = 'events'             # locaton of the events DB folder
 EVT_obj_file_name = 'obj.json' # obect description file name
 # Event DB keys shared between all services
-EVT_obj_id_key = "o_id"     # object ID (from CFG_obj_id_key)
+EVT_obj_id_key = "o_id"     # object ID (from CFG_obj_id_key, in events/chan/obj/obj.json)
 EVT_obj_names_key = "names" # names of the object of interest from config (object name coming from Alexa should match one of them to get the answer)
-EVT_obj_desc_key = "o_desc" # object description string from config (for internal use)
-EVT_osvc_key = "osvc_name"  # event service name from CFG_osvc_name_key (for internal use)
+EVT_obj_desc_key = "o_desc" # object description string from config (in events/chan/obj/obj.json)
+EVT_obj_cid_key = "o_cid"   # object's channel ID from the config (in events/chan/obj/obj.json)
+EVT_obj_cname_key = "o_cname" # object's channel name from the config (in events/chan/obj/obj.json)
+EVT_osvc_list_key = "osvc_list"  # list of services enabled (not filtered out for the obj on the channel, in events/chan/obj/obj.json)
+EVT_osvc_key = "osvc_name"  # event service name from CFG_osvc_name_key
 EVT_c_name_key = "c_name"   # event channel name (for use in speech)
 EVT_in_time_key = "in_time" # epoch time when the event was reported
 EVT_msg_key = "msg"         # message to play for the event

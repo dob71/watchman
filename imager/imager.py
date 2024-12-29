@@ -107,8 +107,13 @@ class ChannelDownloadRunner:
         chan_id = self.chan_id
         url = ch[CFG_chan_url_key]
         name = ch[CFG_chan_name_key]
-        img_file = 'image.jpg' # assume JPEG, but the resolution and type should come from the config (and coversion made if necessary)
-        json_file = 'image.json' # where to store image and metadata
+        img_file = IMG_file_name # assume JPEG, but the resolution and type should come from the config (and coversion made if necessary)
+        json_file = IMG_json_file_name # where to store image and metadata
+
+        # Check if the channel is disabled by the responder due to no services being enabled on it
+        off_file_pathname = f"{IMGDIR}/{chan_id}/{IMG_off_file_name}"
+        if os.path.exists(off_file_pathname):
+            return
 
         # Download raw
         img_file_pathname = f"{IMGDIR}/{chan_id}/{img_file}"

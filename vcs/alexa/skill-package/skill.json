@@ -1,0 +1,38 @@
+{
+  "manifest": {
+    "apis": {
+      "custom": {
+        "endpoint": {
+          "sslCertificateType": "Trusted",
+          "uri": "https://www.okob.net/watchman"
+        },
+        "interfaces": [],
+        "locales": {}
+      }
+    },
+    "manifestVersion": "1.0",
+    "publishingInformation": {
+      "category": "SMART_HOME",
+      "distributionCountries": [],
+      "isAvailableWorldwide": true,
+      "locales": {
+        "en-US": {
+          "description": "This skill intracts with a system monitoring and tracking objects of interest in video feeds.",
+          "examplePhrases": [
+            "Alexa, open my watchman",
+            "hello my watchman",
+            "hi my watchman"
+          ],
+          "keywords": [
+            "Video Monitoring",
+            "Alerts",
+            "Security Cameras"
+          ],
+          "name": "Watchman",
+          "summary": "Watchman is a skill for video feed monitoring service"
+        }
+      },
+      "testingInstructions": "Say 'Alexa, ask my watchman where is my cat'"
+    }
+  }
+}
