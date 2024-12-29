@@ -17,7 +17,7 @@ imager_sources_json_path = "/home/user/capstone/watchman/imager/sources.json"
 # Streamlit widgets automatically run the script from top to bottom. 
 
 # Create sources.json file
-def output_sources_json(channel_input, name_input, url_input, slider_input):
+def output_sources_json(channel_input, name_input, url_input, slider_input, new_version):
     channels = list()
     for i in range(len(channel_input)):
         channels.append(
@@ -31,7 +31,7 @@ def output_sources_json(channel_input, name_input, url_input, slider_input):
 
     # Define the final JSON structure
     output = {
-        "version": 1,
+        "version": new_version,
         "channels": channels
     }
 
@@ -66,7 +66,7 @@ def read_sources_json(channel_input, name_input, url_input, slider_input):
                 url_input.append(channel['url'])
                 slider_input.append(channel['upd_int'])
     
-    return len(channel_input)
+    return (len(channel_input), data['version'])
 
 # Collect the voice query, notify orchestrator and output results
 def collect_and_process_query(test_mode):
@@ -141,10 +141,10 @@ if __name__ == "__main__":
                 st.session_state.url_input = list()
                 st.session_state.slider_input = list()
 
-                st.session_state.num_channels = read_sources_json(st.session_state.channel_input,
-                                                                  st.session_state.name_input,
-                                                                  st.session_state.url_input,
-                                                                  st.session_state.slider_input)
+                (st.session_state.num_channels, st.session_state.sources_version) = read_sources_json(st.session_state.channel_input,
+                                                                                                      st.session_state.name_input,
+                                                                                                      st.session_state.url_input,
+                                                                                                      st.session_state.slider_input)
 
             for i in range(st.session_state.num_channels):
                 st.session_state.channel_input[i] = st.text_input("Channel "+str(i), key="channel"+str(i), value=st.session_state.channel_input[i])
@@ -168,10 +168,12 @@ if __name__ == "__main__":
 
             if st.form_submit_button(label='Confirm configuration', type='primary'):
                 print("Streaming mode: Producing json file")
+                st.session_state.sources_version += 1
                 output_sources_json(st.session_state.channel_input,
                                     st.session_state.name_input,
                                     st.session_state.url_input,
-                                    st.session_state.slider_input)
+                                    st.session_state.slider_input,
+                                    st.session_state.sources_version)
                 st.session_state.app_state = "streaming_run"
                 st.rerun()
 
