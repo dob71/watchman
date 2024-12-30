@@ -8,16 +8,36 @@ from streamlit_mic_recorder import speech_to_text
 
 import json
 import os
+import sys
+
+# Pull in shared variables (file names, JSON object names, ...)
+sys.path.append(os.path.dirname(__file__))
+sys.path.append(os.path.abspath("."))
+
+from dotenv import load_dotenv
+from shared_settings import *
+
+# Figure the path to the data folders depending on where we run
+DATA_DIR = ''
+if not os.path.exists('/.dockerenv'):
+    load_dotenv('./.env')
+    DATA_DIR = os.getenv('DATA_DIR')
+
+# We'll need the images and config folders.
+IMGDIR = f"{DATA_DIR}/{IMG_dir}"
+CFGDIR = f"{DATA_DIR}/{CFG_dir}"
+
 
 # Path where test image would be saved
-test_save_path = "/home/user/capstone/.data/images/captured_test_image.jpg"
+test_save_path = f"{IMGDIR}/captured_test_image.jpg"
 # Path of sources.json
-imager_sources_json_path = "/home/user/capstone/watchman/imager/sources.json"
-imager_objects_json_path = "/home/user/capstone/watchman/imager/objects.json"
+imager_sources_json_path = f"{CFGDIR}/sources.json"
+imager_objects_json_path = f"{CFGDIR}/objects.json"
 
 # Streamlit widgets automatically run the script from top to bottom. 
 
 # Supported classes of objects
+# TODO: pick the classes that we want to support in object detection
 obj_ids_selection = [
    "cat",
    "person",
@@ -134,12 +154,6 @@ def read_objects_json(obj_id_input, obj_names_input, desc_input, obj_svcs_input,
                     "def_off": True
                 }})
         version = 1
-        #obj_svcs_input[0]["location"] = {
-        #            "osvc_name": "location",
-        #            "msgtpl": "I saw [OBJNAME] [TIMEAGO] ago on the [CHANNEL] camera. [LOCATION]",
-        #            "age_out": 10800,
-        #            "def_off": true
-        #        }
     else:
         with open(imager_objects_json_path, "r") as file:
             data = json.load(file)
@@ -229,7 +243,9 @@ def remove_object(obj_id_input, obj_names_input, desc_input, obj_svcs_input):
 # Get the object service dictionary associated with object at a specific index 
 def get_obj_svcs_dict(obj_svcs_input, index):
     with st.container(border=True):
-        location_on = st.toggle("Activate location service", key = "location_toggle" + str(index), value=("location" in obj_svcs_input[index]))
+        location_on = st.toggle("Activate location service",
+                                key = "location_toggle" + str(index), 
+                                value=("location" in obj_svcs_input[index]))
 
         msgtpl = st.text_input("Output message", key = "msgtpl" + str(index),
                                 value = (
@@ -370,10 +386,17 @@ if __name__ == "__main__":
             st.subheader("List of channels")
             for i in range(st.session_state.num_channels):
                 st.divider()
-                st.session_state.channel_input[i] = st.text_input("Channel "+ str(i), key = "channel" + str(i), value=st.session_state.channel_input[i])
-                st.session_state.name_input[i] = st.text_input("Name "+ str(i), key = "name" + str(i), value=st.session_state.name_input[i])
-                st.session_state.url_input[i] = st.text_input("Url "+ str(i), key = "url" + str(i), value=st.session_state.url_input[i])
-                st.session_state.slider_input[i] = st.slider('Update interval '+ str(i), 0, 10, st.session_state.slider_input[i], key='upd_int' + str(i))
+                st.session_state.channel_input[i] = st.text_input("Channel "+ str(i), 
+                                                                  key = "channel" + str(i), 
+                                                                  value=st.session_state.channel_input[i])
+                st.session_state.name_input[i] = st.text_input("Name "+ str(i),
+                                                               key = "name" + str(i),
+                                                               value=st.session_state.name_input[i])
+                st.session_state.url_input[i] = st.text_input("Url "+ str(i),
+                                                              key = "url" + str(i),
+                                                              value=st.session_state.url_input[i])
+                st.session_state.slider_input[i] = st.slider('Update interval '+ str(i), 0, 10, st.session_state.slider_input[i],
+                                                             key='upd_int' + str(i))
 
             if st.form_submit_button(label='Add channel'):
                 add_channel(st.session_state.channel_input,
@@ -424,9 +447,15 @@ if __name__ == "__main__":
 
             for i in range(st.session_state.num_objects):
                 st.divider()
-                st.session_state.obj_id_input[i] = st.selectbox("Object type " + str(i), obj_ids_selection, key="obj_id" + str(i), index=obj_ids_selection.index(st.session_state.obj_id_input[i]))
-                st.session_state.obj_names_input[i] = st.text_input("Object names " + str(i) + " (comma separated list)", key="obj_names" + str(i), value=st.session_state.obj_names_input[i])
-                st.session_state.desc_input[i] = st.text_input("Description " + str(i), key="desc" + str(i), value=st.session_state.desc_input[i])
+                st.session_state.obj_id_input[i] = st.selectbox("Object type " + str(i), obj_ids_selection,
+                                                                key="obj_id" + str(i),
+                                                                index=obj_ids_selection.index(st.session_state.obj_id_input[i]))
+                st.session_state.obj_names_input[i] = st.text_input("Object names " + str(i) + " (comma separated list)",
+                                                                    key="obj_names" + str(i),
+                                                                    value=st.session_state.obj_names_input[i])
+                st.session_state.desc_input[i] = st.text_input("Description " + str(i),
+                                                               key="desc" + str(i),
+                                                               value=st.session_state.desc_input[i])
                 st.session_state.obj_svcs_input[i] = get_obj_svcs_dict(st.session_state.obj_svcs_input, i)
 
             st.divider()
