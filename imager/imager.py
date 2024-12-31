@@ -180,8 +180,6 @@ def read_config():
         print("Falling back to streaming mode...")
         test_mode = False
     except Exception as e:
-        print(f"{sys._getframe().f_code.co_name}: file {IMGR_TEST_CONFIG}, Failed to load JSON file:", e)
-        print("Falling back to streaming mode...")
         test_mode = False
 
     if not test_mode:
