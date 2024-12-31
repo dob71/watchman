@@ -1,0 +1,11 @@
+{
+    "version": 1,
+    "channels": [
+        {
+            "channel": "test",
+            "name": "test",
+            "url": "file://.data/captured_test_image.jpg",
+            "upd_int": 10
+        }
+    ]
+}

@@ -28,6 +28,7 @@ CFGDIR = f"{DATA_DIR}/{CFG_dir}"
 
 # Imager config file name
 IMGR_CONFIG = f"{CFGDIR}/{CFG_imager}"
+IMGR_TEST_CONFIG = f"{CFGDIR}/{CFG_imager_test}"
 
 # Config dictionary
 CFG = {}
@@ -168,20 +169,37 @@ class ChannelDownloadRunner:
 # if the config was updated and has to be re-applied.
 def read_config():
     global CFG
-    # Load JSON first into new config object, 
-    # then chack the config version
+    # First check if a test_sources.json file exists. It would indicate we are in test mode,
+    # in which case we load the test config.
     try:
-        with open(IMGR_CONFIG, "r") as file:
+        with open(IMGR_TEST_CONFIG, "r") as file:
             new_cfg = json.load(file)
+            test_mode = True
     except json.JSONDecodeError as e:
-        print(f"{sys._getframe().f_code.co_name}: file {IMGR_CONFIG}, JSON error on line {e.lineno}: {e.msg}")
-        return None
+        print(f"{sys._getframe().f_code.co_name}: file {IMGR_TEST_CONFIG}, JSON error on line {e.lineno}: {e.msg}")
+        print("Falling back to streaming mode...")
+        test_mode = False
     except Exception as e:
-        print(f"{sys._getframe().f_code.co_name}: file {IMGR_CONFIG}, Failed to load JSON file:", e)
-        return None
-    if len(new_cfg) == 0 or not CFG_version_key in new_cfg.keys():
-        print(f"{sys._getframe().f_code.co_name}: malformed config, no \"{CFG_version_key}\" key found")
-        return None
+        print(f"{sys._getframe().f_code.co_name}: file {IMGR_TEST_CONFIG}, Failed to load JSON file:", e)
+        print("Falling back to streaming mode...")
+        test_mode = False
+
+    if not test_mode:
+        # Load JSON first into new config object, 
+        # then chack the config version
+        try:
+            with open(IMGR_CONFIG, "r") as file:
+                new_cfg = json.load(file)
+        except json.JSONDecodeError as e:
+            print(f"{sys._getframe().f_code.co_name}: file {IMGR_CONFIG}, JSON error on line {e.lineno}: {e.msg}")
+            return None
+        except Exception as e:
+            print(f"{sys._getframe().f_code.co_name}: file {IMGR_CONFIG}, Failed to load JSON file:", e)
+            return None
+        if len(new_cfg) == 0 or not CFG_version_key in new_cfg.keys():
+            print(f"{sys._getframe().f_code.co_name}: malformed config, no \"{CFG_version_key}\" key found")
+            return None
+
     if len(CFG) != 0 and CFG_version_key in CFG.keys() and CFG[CFG_version_key] >= new_cfg[CFG_version_key]:
         return None
     if not CFG_channels_key in new_cfg.keys():

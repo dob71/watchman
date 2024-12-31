@@ -5,6 +5,7 @@
 # Config UI values that are shared
 CFG_dir = 'sysconfig'            # config files folder location
 CFG_imager = 'sources.json'      # video channels config file
+CFG_imager_test = 'test_sources.json' # test config file
 CFG_objects = 'objects.json'     # objects of interest config file
 # imager config JASON values
 CFG_version_key = "version"      # config update counter (for detecting changes)

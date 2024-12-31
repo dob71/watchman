@@ -8,6 +8,7 @@ from streamlit_mic_recorder import speech_to_text
 
 import json
 import os
+import shutil
 import sys
 
 # Pull in shared variables (file names, JSON object names, ...)
@@ -29,10 +30,13 @@ CFGDIR = f"{DATA_DIR}/{CFG_dir}"
 
 
 # Path where test image would be saved
-test_save_path = f"{IMGDIR}/captured_test_image.jpg"
-# Path of sources.json
+test_save_path = f"{DATA_DIR}/captured_test_image.jpg"
+# Path of sources.json and objects.json
 imager_sources_json_path = f"{CFGDIR}/sources.json"
 imager_objects_json_path = f"{CFGDIR}/objects.json"
+# Path of test_sources.json
+imager_test_sources_json_src_path = "./ui/test_sources.json"
+imager_test_sources_json_dst_path = f"{CFGDIR}/test_sources.json"
 
 # Streamlit widgets automatically run the script from top to bottom. 
 
@@ -350,9 +354,9 @@ def get_obj_svcs_dict(obj_svcs_input, index):
 
 
 # Main application state machine
-# initial state -> streaming_configure_sources -> streaming_configure_objects -> streaming_run
-#      |
-#      --> test
+# initial state --> streaming_configure_sources --> configure_objects --> ready
+#      |                                        |
+#      -----------> test_setup ------------------
 if __name__ == "__main__":
     st.title("Watchman")
     if "app_state" not in st.session_state:
@@ -360,11 +364,11 @@ if __name__ == "__main__":
             st.session_state.app_state = "streaming_configure_sources"
 
         def test_callback():
-            st.session_state.app_state = "test"
+            st.session_state.app_state = "test_setup"
 
         with st.form(key='mode_form'):
             st.form_submit_button(label='Streaming mode', on_click=streaming_callback)
-            st.form_submit_button(label='Test using a single image', on_click=test_callback)
+            st.form_submit_button(label='Test with a single channel using a static image', on_click=test_callback)
 
     elif st.session_state.app_state == "streaming_configure_sources":
         st.header("Streaming mode sources configuration")
@@ -420,11 +424,16 @@ if __name__ == "__main__":
                                     st.session_state.url_input,
                                     st.session_state.slider_input,
                                     st.session_state.sources_version)
-                st.session_state.app_state = "streaming_configure_objects"
+                
+                # if we were previously in test mode, remove test_sources.json from config directory
+                if os.path.isfile(imager_test_sources_json_dst_path):
+                    os.remove(imager_test_sources_json_dst_path)
+
+                st.session_state.app_state = "configure_objects"
                 st.rerun()
 
-    elif st.session_state.app_state == "streaming_configure_objects":
-        st.header("Streaming mode objects configuration")
+    elif st.session_state.app_state == "configure_objects":
+        st.header("Objects configuration")
         if "num_objects" not in st.session_state:
             st.session_state.num_objects = 0
 
@@ -482,66 +491,40 @@ if __name__ == "__main__":
                                     st.session_state.obj_svcs_input,
                                     st.session_state.model,
                                     st.session_state.objects_version)
-                st.session_state.app_state = "streaming_run"
+                st.session_state.app_state = "ready"
                 st.rerun()
 
 
-    elif st.session_state.app_state == "streaming_run":
-        st.header("Streaming mode")
+    elif st.session_state.app_state == "ready":
+        st.header("Ready to run")
         collect_and_process_query(test_mode = False)
 
-    elif st.session_state.app_state == "test":
-
-        def set_clicked():
-            st.session_state.clicked = True
-            print("set_clicked")
-
-        def run_test_callback():
-            if 'uploaded_image_file' in st.session_state:
-                with open(test_save_path, mode='wb') as w:
-                    w.write(st.session_state.uploaded_image_file.getvalue())
-                #TODO: run image against model and output result
-                print("Test mode: Sending inputs to orchestrator")
-            else:
-                print("Invalid image file")
-                st.session_state.clicked = False
-                
+    elif st.session_state.app_state == "test_setup":
+        # In test mode, the system adopts a standard configuration with a single channel (test_sources.json)
+        # that uses a jpeg file we upload as image source. 
         st.header("Test mode")
-        if "test_form_enabled" not in st.session_state:
-            st.session_state.test_form_enabled = True
+        with st.form(key='test_form'):
+            st.session_state.uploaded_file = st.file_uploader("Choose a file", type=['jpg', 'jpeg'])
+            if st.session_state.uploaded_file is not None:
+                print("read file as bytes")
 
-        if 'clicked' not in st.session_state:
-            st.session_state.clicked = False
-
-        if st.session_state.test_form_enabled:
-            with st.form(key='test_form'):
-                #st.button('Upload File', on_click=set_clicked)
-                st.session_state.upload_image_button = st.form_submit_button(label='Upload Image', 
-                                                                            on_click=set_clicked)
-                if st.session_state.clicked:
-                    st.session_state.uploaded_file = st.file_uploader("Choose a file")
-                    if st.session_state.uploaded_file is not None:
-                        print("read file as bytes")
-                        bytes_data = st.session_state.uploaded_file.getvalue()
-                        print(bytes_data)
-                        #st.write(bytes_data)
-
-                submit = st.form_submit_button(label='Confirm') 
-                if submit:
-                    if 'uploaded_file' in st.session_state:
-                        # Save the uploaded file
-                        print(st.session_state.uploaded_file)
-                        with open(test_save_path, mode='wb') as w:
-                            w.write(st.session_state.uploaded_file.getvalue())
-                        
-                        # Disable form
-                        st.session_state.test_form_enabled = False
-                        st.rerun()
+            submit = st.form_submit_button(label='Confirm') 
+            if submit:
+                if 'uploaded_file' in st.session_state and st.session_state.uploaded_file is not None:
+                    # Save the uploaded file
+                    print(st.session_state.uploaded_file)
+                    with open(test_save_path, mode='wb') as w:
+                        w.write(st.session_state.uploaded_file.getvalue())
+                    
+                    # Copy test_sources.json to config directory
+                    if os.path.isfile(imager_test_sources_json_src_path):
+                        shutil.copyfile(imager_test_sources_json_src_path, imager_test_sources_json_dst_path)
                     else:
-                        print("Invalid image file")
-                        st.session_state.clicked = False
-
-        if 'uploaded_file' in st.session_state and st.session_state.uploaded_file is not None:
-            collect_and_process_query(test_mode = True)
+                        st.write("test_sources.json is missing.")
+                    
+                    st.session_state.app_state = "configure_objects"
+                    st.rerun()
+                else:
+                    print("Invalid image file")
     else:
         st.write("Unexpected error occurred.")
