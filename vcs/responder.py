@@ -296,6 +296,58 @@ def where_is_it(object_name):
     # Add to the response the updated list of teacked object names
     return rsp
 
+def list_services(obj_info):
+    svcs_info = {}
+    for pn, obj in obj_info.items():
+        try:
+            obj_id = obj[EVT_obj_id_key]
+            obj_names = obj[EVT_obj_names_key]
+            obj_names = [ x.lower() for x in obj_names ]
+            obj_def_name = obj_names[0]
+            chan_id = obj[EVT_obj_cid_key].lower()
+            chan_name = obj[EVT_obj_cname_key].lower()
+        except:
+            print(f"{sys._getframe().f_code.co_name}: invalid event object JSON in {pn}")
+            continue
+        obj_services = obj.get(EVT_osvc_list_key, [])
+        for svc in obj_services:
+            if svc == CFG_dset_svc_name: # filter out dataset service (it's for collecting images for fine tuning)
+                continue
+            svc_channels = svcs_info.get(svc, {})
+            svc_chan_objs = svc_channels.get(chan_name, [])
+            svc_off_file_name = f"{pn}/{svc}.off"
+            if os.path.exists(svc_off_file_name):
+                continue
+            svc_chan_objs_set = set(svc_chan_objs)
+            svc_chan_objs_set.add(obj_def_name)
+            svc_chan_objs = list(svc_chan_objs_set)
+            svc_channels[chan_name] = svc_chan_objs
+            svcs_info[svc] = svc_channels
+    # generate response text summarizing the info over channels (if possible)
+    msg = ""
+    for svc, svc_channels in svcs_info.items():
+        count = 0
+        chan_to_report = list(svc_channels.keys())
+        for chan_name, svc_chan_objs in svc_channels.items():
+            if not chan_name in chan_to_report:
+                continue
+            chan_to_report.remove(chan_name)
+            chan_list = [chan_name]
+            for chan_name2 in chan_to_report:
+                svc_chan_objs2 = svc_channels.get(chan_name2, [])
+                if set(svc_chan_objs2) == set(svc_chan_objs): # can combine channels
+                    chan_to_report.remove(chan_name2)
+                    chan_list.append(chan_name2)
+            if len(chan_list) > 0 and len(svc_chan_objs) > 0:
+                msg += ", " if count > 0 else ""
+                msg += f"{svc} services on " + nice_string_enum(chan_list) + " are active for " + nice_string_enum(svc_chan_objs)
+                count += 1
+        if count > 0:
+            msg += ". "
+    if msg == "":
+        msg = "No active services to report."
+    return msg
+
 def list_items(component_id):
     obj_info = collect_evt_obj_info()
     obj_names_list, channels_list, _, _ = scan_obj_info(obj_info, None, None)
@@ -310,8 +362,10 @@ def list_items(component_id):
             msg = "I can monitor " + nice_string_enum(channels_list) + "."
         else:
             msg = "There is nothing configured for me to monitor."
+    elif component_id == "services":
+        msg = list_services(obj_info)
     else:
-        msg = "I can list objects or channels being monitored, what would you like me to list?"
+        msg = "I can list objects, channels or services, what would you like me to list?"
     rsp = build_response(msg, obj_info=obj_info)
     # Add to the response the updated list of teacked object names
     return rsp

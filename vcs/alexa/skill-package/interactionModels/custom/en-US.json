@@ -39,8 +39,8 @@
         },
         {
           "name": "ListIntent",
-          "slots": [{"name": "component", "type": "ListComponentName", "samples": ["just {component}", "{component}"]}],
-          "samples": ["list {component}", "list"]
+          "slots": [{"name": "component", "type": "ListComponentName", "samples": ["{component}", "just {component}", "{component} information"]}],
+          "samples": ["list", "list {component}", "list {component} information"]
         }, 
         {
           "name": "ServiceObjectChannelControlIntent",
@@ -79,6 +79,7 @@
             "{operation} {service} on {channelname} camera for {objectname}",
             "{operation} {service} service",
             "{operation} {service} service {objectname}",
+            "{operation} {service} service for {objectname} on {channelname}",
             "{operation} {service} service for {objectname} on channel {channelname}",
             "{operation} {service} service for {objectname} on {channelname} channel",
             "{operation} {service} service for {objectname} on {channelname} channels",
@@ -94,6 +95,7 @@
             "{operation} {service} service on {channelname} channels for {objectname}",
             "{operation} {service} services",
             "{operation} {service} services {objectname}",
+            "{operation} {service} services for {objectname} on {channelname}",
             "{operation} {service} services for {objectname} on channel {channelname}",
             "{operation} {service} services for {objectname} on {channelname} channel",
             "{operation} {service} services for {objectname} on {channelname} channels",
@@ -109,6 +111,7 @@
             "{operation} {service} services on {channelname} channels for {objectname}",
             "{operation} {service} tracking",
             "{operation} {service} tracking {objectname}",
+            "{operation} {service} tracking for {objectname} on {channelname}",
             "{operation} {service} tracking for {objectname} on channel {channelname}",
             "{operation} {service} tracking for {objectname} on {channelname} channel",
             "{operation} {service} tracking for {objectname} on {channelname} channels",
@@ -140,8 +143,9 @@
         {
           "name": "ListComponentName",
           "values": [
-            {"id": "objects", "name": { "value": "objects", "synonyms": ["objects", "things", "objects of interest", "can you monitor"]}},
-            {"id": "channels", "name": { "value": "channels", "synonyms": ["video feeds", "cameras", "input channels", "are you watching"]}}
+            {"id": "objects", "name": { "value": "objects", "synonyms": ["objects", "things", "objects of interest"]}},
+            {"id": "channels", "name": { "value": "channels", "synonyms": ["video feeds", "cameras", "input channels"]}},
+            {"id": "services", "name": { "value": "active services", "synonyms": ["active services", "services"]}}
           ]
         },
         {
@@ -241,13 +245,13 @@
         {
           "id": "Elicit.Slot.component-type",
           "variations": [
-              {"type": "PlainText", "value": "I can list channels or objects. What should I list?"}
+              {"type": "PlainText", "value": "I can list channels, objects or active services. What should I list?"}
           ]
         },
         {
             "id": "Slot.Validation.component-type",
             "variations": [
-                {"type": "PlainText", "value": "I can't list {component}, I can only list channels or objects." }
+                {"type": "PlainText", "value": "I can't list {component}, I can only list channels, objects or active services." }
             ]
         }, 
         {
