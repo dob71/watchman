@@ -236,13 +236,14 @@ class ChannelOrchestrator:
     def loop_run_inference(self, obj_js, e_list):
         if MODEL is None:
             return []
+        obj_id = obj_js[EVT_obj_id_key]
         obj_name = obj_js[EVT_obj_names_key][0]
         obj_desc = obj_js[EVT_obj_desc_key]
         # technically, it makes sense to have processing tuned for each service, but for efficiency
         # we do inference for the object described by obj_desc once, then use message templates to
         # tweak the results to the purpose of the specific service.
         try: 
-            res, loc_msg = MODEL.locate(self.img_data, obj_desc, self.chan_name)
+            res, loc_msg = MODEL.locate(self.img_data, obj_id, obj_desc, self.chan_name)
         except Exception as e:
             print(f"{sys._getframe().f_code.co_name}: {MODEL.model_name()} error:", e)
             res = False

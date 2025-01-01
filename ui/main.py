@@ -46,14 +46,13 @@ obj_ids_selection = [
    "cat",
    "person",
    "deer",
-   "bench",
-   "handbag"
 ]
 
 # Supported models
 models_selection = [
     "ollama-simple",
-    "ollama-complex"
+    "ollama-complex",
+    "yolo"
 ]
 
 boolean_selection = [True, False]
