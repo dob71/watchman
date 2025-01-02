@@ -29,14 +29,9 @@ IMGDIR = f"{DATA_DIR}/{IMG_dir}"
 CFGDIR = f"{DATA_DIR}/{CFG_dir}"
 
 
-# Path where test image would be saved
-test_save_path = f"{DATA_DIR}/captured_test_image.jpg"
 # Path of sources.json and objects.json
 imager_sources_json_path = f"{CFGDIR}/sources.json"
 imager_objects_json_path = f"{CFGDIR}/objects.json"
-# Path of test_sources.json
-imager_test_sources_json_src_path = "./ui/test_sources.json"
-imager_test_sources_json_dst_path = f"{CFGDIR}/test_sources.json"
 
 # Streamlit widgets automatically run the script from top to bottom. 
 
@@ -46,8 +41,6 @@ obj_ids_selection = [
    "cat",
    "person",
    "deer",
-   "bench",
-   "handbag"
 ]
 
 # Supported models
@@ -176,34 +169,6 @@ def read_objects_json(obj_id_input, obj_names_input, desc_input, obj_svcs_input,
             version = data['version']
     
     return (len(obj_id_input), version, model)
-
-
-# Collect the voice query, notify orchestrator and output results
-def collect_and_process_query(test_mode):
-    text = speech_to_text(
-        language='en',
-        start_prompt="Press to record voice query",
-        stop_prompt="Stop recording",
-        just_once=False,
-        use_container_width=False,
-        callback=None,
-        args=(),
-        kwargs={},
-        key=None
-    )
-    if text:
-        st.write("Voice query: " + text)
-        if st.button("Submit recorded query", type="primary"):
-            #TODO: Notify orchestrator and wait for results
-
-            #output results
-            st.write("Hit the play button to hear the results...")
-            sound_file = BytesIO()
-            tts = gTTS('The cat is in the top-right-hand corner of channel 1, next to the plant', lang='en')
-            tts.write_to_fp(sound_file)
-            st.audio(sound_file)
-    else:
-        st.write("No voice query recorded")
 
 # Add an extra source channel
 def add_channel(channel_input, name_input, url_input, slider_input):
@@ -355,23 +320,18 @@ def get_obj_svcs_dict(obj_svcs_input, index):
 
 # Main application state machine
 # initial state --> streaming_configure_sources --> configure_objects --> ready
-#      |                                        |
-#      -----------> test_setup ------------------
 if __name__ == "__main__":
     st.title("Watchman")
     if "app_state" not in st.session_state:
-        def streaming_callback():
+        def start_callback():
             st.session_state.app_state = "streaming_configure_sources"
 
-        def test_callback():
-            st.session_state.app_state = "test_setup"
-
-        with st.form(key='mode_form'):
-            st.form_submit_button(label='Streaming mode', on_click=streaming_callback)
-            st.form_submit_button(label='Test with a single channel using a static image', on_click=test_callback)
+        with st.form(key='start_form'):
+            st.write("Hit start to configure the Watchman system")
+            st.form_submit_button(label='Start', on_click=start_callback)
 
     elif st.session_state.app_state == "streaming_configure_sources":
-        st.header("Streaming mode sources configuration")
+        st.header("Streaming sources configuration")
         if "num_channels" not in st.session_state:
             st.session_state.num_channels = 0
 
@@ -424,10 +384,6 @@ if __name__ == "__main__":
                                     st.session_state.url_input,
                                     st.session_state.slider_input,
                                     st.session_state.sources_version)
-                
-                # if we were previously in test mode, remove test_sources.json from config directory
-                if os.path.isfile(imager_test_sources_json_dst_path):
-                    os.remove(imager_test_sources_json_dst_path)
 
                 st.session_state.app_state = "configure_objects"
                 st.rerun()
@@ -496,35 +452,7 @@ if __name__ == "__main__":
 
 
     elif st.session_state.app_state == "ready":
-        st.header("Ready to run")
-        collect_and_process_query(test_mode = False)
+        st.header("Configuration complete.")
 
-    elif st.session_state.app_state == "test_setup":
-        # In test mode, the system adopts a standard configuration with a single channel (test_sources.json)
-        # that uses a jpeg file we upload as image source. 
-        st.header("Test mode")
-        with st.form(key='test_form'):
-            st.session_state.uploaded_file = st.file_uploader("Choose a file", type=['jpg', 'jpeg'])
-            if st.session_state.uploaded_file is not None:
-                print("read file as bytes")
-
-            submit = st.form_submit_button(label='Confirm') 
-            if submit:
-                if 'uploaded_file' in st.session_state and st.session_state.uploaded_file is not None:
-                    # Save the uploaded file
-                    print(st.session_state.uploaded_file)
-                    with open(test_save_path, mode='wb') as w:
-                        w.write(st.session_state.uploaded_file.getvalue())
-                    
-                    # Copy test_sources.json to config directory
-                    if os.path.isfile(imager_test_sources_json_src_path):
-                        shutil.copyfile(imager_test_sources_json_src_path, imager_test_sources_json_dst_path)
-                    else:
-                        st.write("test_sources.json is missing.")
-                    
-                    st.session_state.app_state = "configure_objects"
-                    st.rerun()
-                else:
-                    print("Invalid image file")
     else:
         st.write("Unexpected error occurred.")
