@@ -84,11 +84,11 @@ def output_sources_json(channel_input, name_input, url_input, slider_input, new_
 # Return the number of channels which is determined by the number of entries in sources.json and the current version number.
 def read_sources_json(channel_input, name_input, url_input, slider_input):
     if not os.path.exists(imager_sources_json_path):
-        # Provide default data as a fallback when sources.json does not exist
-        for i in range(4):
-            channel_input.append("porch")
-            name_input.append("Porch")
-            url_input.append("http://192.168.0.10/cgi-bin/api.cgi?cmd=Snap&width=1280&height=720&channel=0")
+        # Provide hypothetical defaults when sources.json does not exist
+        for i in range(2):
+            channel_input.append(str(i))
+            name_input.append(f"channel-{i}")
+            url_input.append(f"http://my.webcam.com/webcam-{i}.jpg")
             slider_input.append(3)
         version = 1
     else:
@@ -317,6 +317,14 @@ def get_obj_svcs_dict(obj_svcs_input, index):
 
     return obj_svcs_input[index]
 
+# handle removal of the channels
+def handle_removal(index):
+    st.session_state.channel_input.pop(index)
+    st.session_state.name_input.pop(index)
+    st.session_state.url_input.pop(index)
+    st.session_state.slider_input.pop(index)
+    st.session_state.num_channels -= 1
+    st.rerun()
 
 # Main application state machine
 # initial state --> streaming_configure_sources --> configure_objects --> ready
@@ -361,19 +369,16 @@ if __name__ == "__main__":
                                                               value=st.session_state.url_input[i])
                 st.session_state.slider_input[i] = st.slider('Update interval '+ str(i), 0, 10, st.session_state.slider_input[i],
                                                              key='upd_int' + str(i))
+                # Create a hidden field to handle removal
+                if st.form_submit_button(f"Remove Channel {i}"):
+                    handle_removal(i)
 
+            st.divider()
             if st.form_submit_button(label='Add channel'):
                 add_channel(st.session_state.channel_input,
                             st.session_state.name_input,
                             st.session_state.url_input,
                             st.session_state.slider_input)
-                st.rerun()  # Rerun to reflect changes immediately
-
-            if st.form_submit_button(label='Remove channel'):
-                remove_channel(st.session_state.channel_input,
-                               st.session_state.name_input,
-                               st.session_state.url_input,
-                               st.session_state.slider_input)
                 st.rerun()  # Rerun to reflect changes immediately
 
             if st.form_submit_button(label='Confirm configuration', type='primary'):
