@@ -64,7 +64,7 @@ objects.json:
                     "skip_ch": []
                 }, {
                     "osvc_name": "alert",
-                    "msgtpl": "[OBJNAME] is on the [CHANNEL] camera. [LOCATION]",
+                    "msgtpl": "I see [OBJNAME] on the [CHANNEL] camera. [LOCATION]",
                     "age_out": 60,
                     "mute_time": 300,
                     "def_off": true,

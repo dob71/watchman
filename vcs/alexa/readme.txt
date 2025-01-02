@@ -17,13 +17,41 @@ to point to your responder.
 
 Deploy using "ask deploy" command, or install Alexa ASK extension for VS code, set it up,
 load the local skill from this folder and deploy using the extension interface.
+Before deploying, make sure to change uri": "https://..." in the skill.json
+to the URL serving where the watchman's responder is serving the requests. Note that
+it has to be HTTPS w/ a trusted certificate (use ngrok for that).
 
 After a successful deplyment ask will generate a new "skillId" and update the ask-states.json.
 Don't forget to add that skill ID to your project .env file (it is used by the responder to
 verify the requests are coming from your Alexa skill).
 
-Example dialog:
+The ask tool can be used to test the conversation w/ the skill without using any voice input
+devices by running: "ask dialog --locale en-US --skill-id <skillid> --stage development"
 
+Commands for installing ASK under Ubuntu 22.04 (requires installing nodejs)
+---------------------------------------------------------------------------
+# you might want to purge the old nodejs version first
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl gnupg
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+NODE_MAJOR=22
+echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list
+sudo apt-get update
+sudo apt-get install nodejs -y
+sudo npm install -g ask-cli
+ask configure # AWS credentials won't be necessary as we serve locally
+
+# after editing the URI in the vcs/alexa/skill.json
+cd vcs/alexa
+ask deploy
+
+# If editing in dev console, go to ./vcs/alexa folder and download your own "skill-pkg" with:
+#   ask smapi export-package --stage development --skill-id <skill_ID>
+# after that you can still edit manually and deploy with "ask deploy".
+
+Example dialog ("ask dialog" session):
+--------------------------------------
 ============================================================================= Welcome to ASK Dialog ============================================================================
 ================================================= In interactive mode, type your utterance text onto the console and hit enter =================================================
 =========================================================== Alexa will then evaluate your input and give a response! ===========================================================

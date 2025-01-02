@@ -1,11 +1,10 @@
+# This is Alexa responder service.
+# It handles ALexa's Watchman skill requests.
 import os
 import sys
 import json
 import time
-import humanize
 import datetime as dt
-import re
-import shutil
 from flask import Flask, request, jsonify, abort
 from dotenv import load_dotenv
 
@@ -13,6 +12,7 @@ from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
 sys.path.append(os.path.abspath("."))
 from shared_settings import *
+from vcs_lib import *
 
 # Figure the path to the data folders depending on where we run
 DATA_DIR = ''
@@ -26,7 +26,7 @@ IMGDIR = f"{DATA_DIR}/{IMG_dir}"
 
 # Alexa skill ID for request verification
 ALEXA_SKILL_ID = os.getenv('ALEXA_SKILL_ID')
-if len(ALEXA_SKILL_ID) == 0:
+if ALEXA_SKILL_ID is None or len(ALEXA_SKILL_ID) == 0:
     print(f"Unable to continue, please specify ALEXA_SKILL_ID in the project's .env file!")
     exit(1)
 
@@ -180,19 +180,6 @@ def build_response(speech_text, obj_info=None, dialog_delegate=False, clear=Fals
 
     # print(json.dumps(rsp, indent=2))
     return jsonify(rsp)
-
-# Constructs event message from the event data
-def construct_evt_msg(evt_data, ref_name, service):
-    msg = evt_data.get(EVT_msg_key, f"invalid data for {ref_name} {service}")
-    try:
-        timeago_sec = time.time() - evt_data[EVT_in_time_key]
-        delta = dt.timedelta(seconds=int(timeago_sec))
-        timeago_human = humanize.naturaldelta(delta, minimum_unit="seconds")
-    except:
-        timeago_human = "unknown time period"
-    d = {'TIMEAGO': timeago_human, 'OBJECT': ref_name}
-    msg = re.sub(r'\[([^\]]*)\]', lambda x:d.get(x.group(1)) if x.group(1) in d.keys() else f"[{x.group(1)}]", msg)
-    return msg
 
 # Collect info about all event objects from the events folder.
 # Returns a dictionary where keys: path to obj folder, values: data from obj.json

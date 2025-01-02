@@ -27,3 +27,81 @@ Example of the sources config:
     }
   ]
 }
+
+Example of the objects of interest config:
+{
+    "version": 5,
+    "model": "ollama-simple",
+    "objects": [ {
+            "obj_id": "cat",
+            "names": ["a cat", "panda", "my cat", "cat", "the cat", "that stupid cat"],
+            "desc": "a black and white tuxedo cat",
+            "obj_svcs": [{
+                    "osvc_name": "location",
+                    "msgtpl": "I saw [OBJNAME] [TIMEAGO] ago on the [CHANNEL] camera. [LOCATION]",
+                    "age_out": 10800,
+                    "def_off": true
+                }, {
+                    "osvc_name": "dataset",
+                    "msgtpl": "OBJNAME:[OBJNAME] CHANNEL:[CHANNEL] LOCATION:[LOCATION]",
+                    "pname": "./.data/dataset",
+                    "age_out": 60,
+                    "def_off": true,
+                    "skip_ch": []
+                }
+            ]
+        }, {
+            "obj_id": "person",
+            "names": ["people", "a person", "anybody", "somebody", "human", "meat pupsicle"],
+            "desc": "a person",
+            "obj_svcs": [{
+                    "osvc_name": "location",
+                    "msgtpl": "I saw [OBJNAME] [TIMEAGO] ago on the [CHANNEL] camera. [LOCATION]",
+                    "age_out": 86400,
+                    "def_off": true,
+                    "skip_ch": []
+                }, {
+                    "osvc_name": "alert",
+                    "msgtpl": "[OBJNAME] is on the [CHANNEL] camera. [LOCATION]",
+                    "age_out": 60,
+                    "mute_time": 300,
+                    "def_off": true,
+                    "skip_ch": ["front", "back"]
+                }, {
+                    "osvc_name": "dataset",
+                    "msgtpl": "OBJNAME:[OBJNAME] CHANNEL:[CHANNEL] LOCATION:[LOCATION]",
+                    "pname": "./.data/dataset",
+                    "age_out": 60,
+                    "def_off": true,
+                    "skip_ch": []
+                }
+            ]
+        }, {
+            "obj_id": "deer",
+            "names": ["a deer", "a voratious pest", "a pest", "deer"],
+            "desc": "a deer",
+            "obj_svcs": [{
+                    "osvc_name": "alert",
+                    "msgtpl": "[OBJNAME] is on the [CHANNEL] camera. [LOCATION]",
+                    "age_out": 60,
+                    "mute_time": 600,
+                    "def_off": true,
+                    "skip_ch": ["porch", "driveway"]
+                }, {
+                    "osvc_name": "location",
+                    "msgtpl": "I saw [OBJNAME] [TIMEAGO] ago on the [CHANNEL] camera. [LOCATION]",
+                    "age_out": 86400,
+                    "def_off": true,
+                    "skip_ch": ["porch", "driveway"]
+                }, {
+                    "osvc_name": "dataset",
+                    "msgtpl": "OBJNAME:[OBJNAME] CHANNEL:[CHANNEL] LOCATION:[LOCATION]",
+                    "pname": "./.data/dataset",
+                    "age_out": 60,
+                    "def_off": true,
+                    "skip_ch": []
+                }
+            ]
+        }
+    ]
+}

@@ -257,7 +257,7 @@
         {
             "id": "Slot.Validation.enable-disable",
             "variations": [
-                {"type": "PlainText", "value": "Can onlly enable or disable something." }
+                {"type": "PlainText", "value": "I can only enable or disable something." }
             ]
         }
     ]
