@@ -334,6 +334,10 @@ class ChannelOrchestrator:
 
 # Main loop (called w/ ORCH_poll_int_ms interval)
 def main_loop(iteration):
+    # Read objects of interest config, if new, remove all the existent event entries
+    # and ChannelOrchestrator instances
+    read_and_apply_config()
+
     # Make the lists of input (imager) and output (events) channels
     img_chans = list(filter(lambda x : not x.startswith('.'), os.listdir(IMGDIR)))
     evt_chans = list(filter(lambda x : not x.startswith('.'), os.listdir(EVTDIR)))
@@ -344,10 +348,6 @@ def main_loop(iteration):
             if ch in crun_ch_ids:
                 del CRUN[ch]
             shutil.rmtree(f"{EVTDIR}/{ch}", ignore_errors=True)
-
-    # Read objects of interest config, if new, remove all the existent event entries
-    # and ChannelOrchestrator instances
-    read_and_apply_config()
 
     # Note, that there might be problems with racing conditions between channel updates
     #       propagating through the imager and the objects config read here. They have
