@@ -5,19 +5,26 @@ from ollama import chat, generate
 class OllamaSimpleInterface:
     def __init__(self, model_to_use='llama3.2-vision:11b-instruct-fp16'):
         self.model_to_use = model_to_use
-        rsp = chat(
-            model = self.model_to_use,
-            messages = [],
-        )
-        print(f"Model: {rsp.model}, result:{rsp.done_reason}")
+        try:
+            rsp = chat(
+                model = self.model_to_use,
+                messages = [],
+            )
+            print(f"Model: {rsp.model}, result:{rsp.done_reason}")
+        except Exception as e:
+            print(f"Exception loading {self.model_to_use}: {e}")
+
 
     def __del__(self):
-        rsp = chat(
-            model = self.model_to_use,
-            messages = [],
-            keep_alive = 0,
-        )
-        print(f"Model: {rsp.model}, result:{rsp.done_reason}")
+        try:
+            rsp = chat(
+                model = self.model_to_use,
+                messages = [],
+                keep_alive = 0,
+            )
+            print(f"Model: {rsp.model}, result:{rsp.done_reason}")
+        except Exception as e:
+            print(f"Exception unloading {self.model_to_use}: {e}")
     
     # How this interface should be referred to in config
     @staticmethod
