@@ -98,7 +98,7 @@ def process_alert(alert_file_pn):
         os.rename(alert_file_pn, alert_done_pn)
     except:
         print(f"{sys._getframe().f_code.co_name}: unable to do atomic rename of {alert_file_pn} to {alert_done_pn}")
-    if modified_ago > mute_time:
+    if modified_ago == -1 or modified_ago > mute_time:
         msg = construct_evt_msg(alert_data, obj_name, CFG_alrt_svc_name)
         if not do_announcement(msg):
             # if failed to announce, just remove the alert_done.json file and hope the alert is triggered again
