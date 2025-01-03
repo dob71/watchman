@@ -1,4 +1,4 @@
-Ollama can be used locally or in docker
+OLLAMA can be used locally or in docker.
 Under Linux it's esier to install locally: 
   curl -fsSL https://ollama.com/install.sh | sh
 then use the below command to load and manually try the model
