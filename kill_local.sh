@@ -13,13 +13,13 @@ echo "Killing groups $PID_LIST ..."
 for pid in $PID_LIST; do
     kill -- -$pid  1>/dev/null 2>&1
 done
-echo "Waiting..."
+echo "Waiting 10sec..."
 sleep 5
 # another run before SIGKILL
 for pid in $PID_LIST; do
     kill -- -$pid  1>/dev/null 2>&1
 done
-sleep 1
+sleep 5
 echo "Checking if still running..."
 for pid in $PID_LIST; do
     if ! pgrep -g $pid; then
