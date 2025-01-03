@@ -392,6 +392,11 @@ if __name__ == "__main__":
                 st.session_state.app_state = "init"
                 st.rerun()
 
+        # Add a "Back" button to go back to the start form
+        if st.button("Back"):
+            st.session_state.app_state = "init"
+            st.rerun()
+
     elif st.session_state.app_state == "configure_objects":
         st.header("Objects configuration")
         if "num_objects" not in st.session_state:
@@ -450,6 +455,11 @@ if __name__ == "__main__":
                                     st.session_state.objects_version)
                 st.session_state.app_state = "init"
                 st.rerun()
+
+        # Add a "Back" button to go back to the start form
+        if st.button("Back"):
+            st.session_state.app_state = "init"
+            st.rerun()
 
     else:
         st.write("Unexpected error occurred.")
