@@ -214,7 +214,7 @@ def get_obj_svcs_dict(obj_svcs_input, index):
                                     else obj_svcs_input[index]["location"]["msgtpl"]
                                 ),
                                )
-        age_out = st.number_input("Age out", min_value = 0, key = "age_out" + str(index),
+        age_out = st.number_input("Age out (hours)", min_value = 0, key = "age_out" + str(index),
                                     value = (
                                         0  # Default value
                                         if "location" not in obj_svcs_input[index] or "age_out" not in obj_svcs_input[index]["location"] 
@@ -261,14 +261,14 @@ def get_obj_svcs_dict(obj_svcs_input, index):
                                     else obj_svcs_input[index]["alert"]["msgtpl"]
                                 ),
                               )
-        age_out = st.number_input("Age out", min_value = 0, key = "age_out_alert" + str(index),
+        age_out = st.number_input("Age out (hours)", min_value = 0, key = "age_out_alert" + str(index),
                                     value = (
                                         0  # Default value
                                         if "alert" not in obj_svcs_input[index] or "age_out" not in obj_svcs_input[index]["alert"] 
                                         else obj_svcs_input[index]["alert"]["age_out"]
                                     ),                            
                                     format="%d")
-        mute_time = st.number_input("Mute time", min_value = 0, key = "mute_time_alert" + str(index),
+        mute_time = st.number_input("Mute time (secs)", min_value = 0, key = "mute_time_alert" + str(index),
                                     value = (
                                         600  # Default value
                                         if "alert" not in obj_svcs_input[index] or "mute_time" not in obj_svcs_input[index]["alert"] 
@@ -319,16 +319,22 @@ def handle_removal(index):
         st.rerun()
 
 # Main application state machine
-# initial state --> streaming_configure_sources --> configure_objects --> ready
+# initial state --> streaming_configure_sources --> initial state
+#               |                               |
+#               -----> configure_objects -------- 
 if __name__ == "__main__":
     st.title("Watchman")
-    if "app_state" not in st.session_state:
-        def start_callback():
+    if "app_state" not in st.session_state or st.session_state.app_state == "init":
+        def sources_callback():
             st.session_state.app_state = "streaming_configure_sources"
 
+        def objects_callback():
+            st.session_state.app_state = "configure_objects"
+
         with st.form(key='start_form'):
-            st.write("Hit start to configure the Watchman system")
-            st.form_submit_button(label='Start', on_click=start_callback)
+            st.write("Select which you would like to configure")
+            st.form_submit_button(label='Input Channels', on_click=sources_callback)
+            st.form_submit_button(label='Objects of interest', on_click=objects_callback)
 
     elif st.session_state.app_state == "streaming_configure_sources":
         st.header("Streaming sources configuration")
@@ -382,7 +388,7 @@ if __name__ == "__main__":
                                     st.session_state.slider_input,
                                     st.session_state.sources_version)
 
-                st.session_state.app_state = "configure_objects"
+                st.session_state.app_state = "init"
                 st.rerun()
 
     elif st.session_state.app_state == "configure_objects":
@@ -444,12 +450,8 @@ if __name__ == "__main__":
                                     st.session_state.obj_svcs_input,
                                     st.session_state.model,
                                     st.session_state.objects_version)
-                st.session_state.app_state = "ready"
+                st.session_state.app_state = "init"
                 st.rerun()
-
-
-    elif st.session_state.app_state == "ready":
-        st.header("Configuration complete.")
 
     else:
         st.write("Unexpected error occurred.")
