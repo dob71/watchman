@@ -12,18 +12,16 @@ Create ".ask" folder here and write .ask/ask-states.json file w/ the following c
 ------------- end cut -------------
 
 If it's the first time you are deploying the skill and have no "skillId", then leave it empty.
-Don't forget to change the "uri": "https://your.url.com/path" (./skill-package/skill.json)
-to point to your responder.
 
 Deploy using "ask deploy" command, or install Alexa ASK extension for VS code, set it up,
 load the local skill from this folder and deploy using the extension interface.
-Before deploying, make sure to change uri": "https://..." in the skill.json
-to the URL serving where the watchman's responder is serving the requests. Note that
-it has to be HTTPS w/ a trusted certificate (use ngrok for that).
+Before deploying, make sure to change "uri": "https://your.url.com/path" in the
+./skill-package/skill.json file to the URL where the watchman's responder is serving
+the requests. Note that it has to be HTTPS w/ a trusted certificate (use ngrok for that).
 
 After a successful deplyment ask will generate a new "skillId" and update the ask-states.json.
-Don't forget to add that skill ID to your project .env file (it is used by the responder to
-verify the requests are coming from your Alexa skill).
+Add that skill ID to your project .env file (it is used by the responder to verify the requests
+are coming from your Alexa skill).
 
 The ask tool can be used to test the conversation w/ the skill without using any voice input
 devices by running: "ask dialog --locale en-US --skill-id <skillid> --stage development"
@@ -46,7 +44,7 @@ ask configure # AWS credentials won't be necessary as we serve locally
 cd vcs/alexa
 ask deploy
 
-# If editing in dev console, go to ./vcs/alexa folder and download your own "skill-pkg" with:
+# If editing skill in dev console, go to ./vcs/alexa folder and download your own "skill-pkg" with:
 #   ask smapi export-package --stage development --skill-id <skill_ID>
 # after that you can still edit manually and deploy with "ask deploy".
 
