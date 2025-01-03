@@ -178,15 +178,6 @@ def add_channel(channel_input, name_input, url_input, slider_input):
     slider_input.append(3)
     st.session_state.num_channels += 1
 
-# Remove the last source channel from existing ones
-def remove_channel(channel_input, name_input, url_input, slider_input):
-    if st.session_state.num_channels > 1:  #keep one channel at a minimum
-        channel_input.pop()
-        name_input.pop()
-        url_input.pop()
-        slider_input.pop()
-        st.session_state.num_channels -= 1
-
 # Add an extra object
 def add_object(obj_id_input, obj_names_input, desc_input, obj_svcs_input):
     obj_id_input.append("cat")
@@ -319,12 +310,13 @@ def get_obj_svcs_dict(obj_svcs_input, index):
 
 # handle removal of the channels
 def handle_removal(index):
-    st.session_state.channel_input.pop(index)
-    st.session_state.name_input.pop(index)
-    st.session_state.url_input.pop(index)
-    st.session_state.slider_input.pop(index)
-    st.session_state.num_channels -= 1
-    st.rerun()
+    if st.session_state.num_channels > 1:  #keep one channel at a minimum
+        st.session_state.channel_input.pop(index)
+        st.session_state.name_input.pop(index)
+        st.session_state.url_input.pop(index)
+        st.session_state.slider_input.pop(index)
+        st.session_state.num_channels -= 1
+        st.rerun()
 
 # Main application state machine
 # initial state --> streaming_configure_sources --> configure_objects --> ready
