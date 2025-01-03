@@ -140,7 +140,7 @@ def output_objects_json(obj_id_input, obj_names_input, desc_input, obj_svcs_inpu
 # Return the number of objects which is determined by the number of entries in objects.json and the current version number.
 def read_objects_json(obj_id_input, obj_names_input, desc_input, obj_svcs_input, model):
     if not os.path.exists(imager_objects_json_path):
-        # Provide default data as a fallback when sources.json does not exist
+        # Provide default data as a fallback when objects.json does not exist
         obj_id_input.append("cat")
         obj_names_input.append("the cat")
         desc_input.append("a cat")
@@ -190,15 +190,6 @@ def add_object(obj_id_input, obj_names_input, desc_input, obj_svcs_input):
                     "def_off": True
                 }})
     st.session_state.num_objects += 1
-
-# Remove the last object from existing ones
-def remove_object(obj_id_input, obj_names_input, desc_input, obj_svcs_input):
-    if st.session_state.num_objects > 1:  #keep one object at a minimum
-        obj_id_input.pop()
-        obj_names_input.pop()
-        desc_input.pop()
-        obj_svcs_input.pop()
-        st.session_state.num_objects -= 1
 
 # Get the object service dictionary associated with object at a specific index 
 def get_obj_svcs_dict(obj_svcs_input, index):
@@ -309,13 +300,23 @@ def get_obj_svcs_dict(obj_svcs_input, index):
     return obj_svcs_input[index]
 
 # handle removal of the channels
-def handle_removal(index):
+def handle_channel_removal(index):
     if st.session_state.num_channels > 1:  #keep one channel at a minimum
         st.session_state.channel_input.pop(index)
         st.session_state.name_input.pop(index)
         st.session_state.url_input.pop(index)
         st.session_state.slider_input.pop(index)
         st.session_state.num_channels -= 1
+        st.rerun()
+
+# handle removal of the objects
+def handle_object_removal(index):
+    if st.session_state.num_objects > 1:  #keep one object at a minimum
+        st.session_state.obj_id_input.pop(index)
+        st.session_state.obj_names_input.pop(index)
+        st.session_state.desc_input.pop(index)
+        st.session_state.obj_svcs_input.pop(index)
+        st.session_state.num_objects -= 1
         st.rerun()
 
 # Main application state machine
@@ -367,9 +368,9 @@ if __name__ == "__main__":
                                                               value=st.session_state.url_input[i])
                 st.session_state.slider_input[i] = st.slider('Update interval '+ str(i), 0, 10, st.session_state.slider_input[i],
                                                              key='upd_int' + str(i))
-                # Create a hidden field to handle removal
+                # Create a button to handle removal
                 if st.form_submit_button(f"Remove Channel {i}"):
-                    handle_removal(i)
+                    handle_channel_removal(i)
 
             st.divider()
             if st.form_submit_button(label='Add channel'):
@@ -426,19 +427,16 @@ if __name__ == "__main__":
                                                                value=st.session_state.desc_input[i])
                 st.session_state.obj_svcs_input[i] = get_obj_svcs_dict(st.session_state.obj_svcs_input, i)
 
+                # Create a button to handle removal
+                if st.form_submit_button(f"Remove Object {i}"):
+                    handle_object_removal(i)
+
             st.divider()
             if st.form_submit_button(label='Add object'):
                 add_object(st.session_state.obj_id_input,
                             st.session_state.obj_names_input,
                             st.session_state.desc_input,
                             st.session_state.obj_svcs_input)
-                st.rerun()  # Rerun to reflect changes immediately
-
-            if st.form_submit_button(label='Remove object'):
-                remove_object(st.session_state.obj_id_input,
-                               st.session_state.obj_names_input,
-                               st.session_state.desc_input,
-                               st.session_state.obj_svcs_input)
                 st.rerun()  # Rerun to reflect changes immediately
 
             if st.form_submit_button(label='Confirm configuration', type='primary'):
