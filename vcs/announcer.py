@@ -67,6 +67,7 @@ def do_announcement(msg):
 # we just delete the file, otherwise make the notification.
 # The mute time has to be read from the obj.json in the folder.
 def process_alert(alert_file_pn):
+    print(f"process_alert called {alert_file_pn}")
     pn = alert_file_pn[:-(len(ALERT_JSON) + 1)]
     obj_json_pn = f"{pn}/{EVT_obj_file_name}"
     try:
@@ -92,6 +93,7 @@ def process_alert(alert_file_pn):
     # Check if the previos alert here was within the mute time
     alert_done_pn = f"{pn}/{CFG_alrt_svc_name}_done.json"
     modified_ago = get_modified_time_ago(alert_done_pn)
+    print(f"alert info read, {modified_ago} {alert_done_pn}")
     # rename the new alert into alert_done.json if want the mute time to start ony if the object
     # is not detected anymore, alternatively, just delete the new alert if within the mute time window
     try:
@@ -111,6 +113,7 @@ class AlertHandler(FileSystemEventHandler):
     def on_any_event(self, event):
         # we do rename, so have to watch the dir change events
         if event.is_directory:
+            print(f"dir event for {event.src_path}")
             file_path = f"{event.src_path}/{ALERT_JSON}"
             if os.path.exists(file_path):
                 process_alert(file_path)
@@ -130,4 +133,5 @@ def watch_folder(path_to_watch):
     observer.join()
 
 # Set the folder to watch
-watch_folder(EVTDIR)
+print("this shit is not even starting")
+watch_folder(os.path.dirname(EVTDIR))
