@@ -7,7 +7,9 @@ locally to access the system information and generate dialog responses.
 You'll need to expose your local service endpoint (running on port 8080) to the Internet
 (HTTPs with a trusted server certificate is required). Unless you already have the means
 to achieve that "ngrok" service would be the easiest approach. Note the ngrok URL to use
-for accessing your responder service.
+for accessing your responder service, and make sure to change the certificate type to
+"wildcard" in the Watchman skill configuration.
+
 
 Follow the instructions linked below to set up Alexa dev account and install ASK CLI:
 https://developer.amazon.com/en-US/docs/alexa/smapi/quick-start-alexa-skills-kit-command-line-interface.html
