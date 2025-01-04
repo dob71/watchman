@@ -33,9 +33,9 @@ done
 
 # start all services in their own groups
 ( setsid $SHELL --norc --noprofile -c "echo \$\$ > $LOGS_DIR/imager.pid; while true; do python -u imager/imager.py; sleep 5; done" 2>&1 | multilog t n3 s1000000 "$LOGS_DIR/imager" & )
-( setsid $SHELL --norc --noprofile -c "echo \$\$ > $LOGS_DIR/orchestrator.pid; while true; do python orchestrator/orchestrator.py; sleep 5; done" 2>&1 | multilog t n3 s1000000 "$LOGS_DIR/orchestrator" & )
-( setsid $SHELL --norc --noprofile -c "echo \$\$ > $LOGS_DIR/announcer.pid; while true; do python vcs/announcer.py; sleep 5; done" 2>&1 | multilog t n3 s1000000 "$LOGS_DIR/announcer" & )
-( setsid $SHELL --norc --noprofile -c "echo \$\$ > $LOGS_DIR/responder.pid; while true; do python vcs/responder.py; sleep 5; done" 2>&1 | multilog t n3 s1000000 "$LOGS_DIR/responder" &)
+( setsid $SHELL --norc --noprofile -c "echo \$\$ > $LOGS_DIR/orchestrator.pid; while true; do python -u orchestrator/orchestrator.py; sleep 5; done" 2>&1 | multilog t n3 s1000000 "$LOGS_DIR/orchestrator" & )
+( setsid $SHELL --norc --noprofile -c "echo \$\$ > $LOGS_DIR/announcer.pid; while true; do python -u vcs/announcer.py; sleep 5; done" 2>&1 | multilog t n3 s1000000 "$LOGS_DIR/announcer" & )
+( setsid $SHELL --norc --noprofile -c "echo \$\$ > $LOGS_DIR/responder.pid; while true; do python -u vcs/responder.py; sleep 5; done" 2>&1 | multilog t n3 s1000000 "$LOGS_DIR/responder" &)
 ( setsid $SHELL --norc --noprofile -c "echo \$\$ > $LOGS_DIR/ui.pid; while true; do streamlit run ui/main.py --server.port $UI_PORT --server.headless true; sleep 5; done" 2>&1 | multilog t n3 s1000000 "$LOGS_DIR/ui" & )
 
 echo "Started, see the logs in $LOGS_DIR for results."
