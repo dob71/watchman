@@ -276,6 +276,8 @@ def where_is_it(object_name):
         msg = "Watchman is tracking " + nice_string_enum(tracked_obj_list) + f". Watchman is not trackiong {object_name}. Please repeat your question."
         rsp = build_response(msg, obj_info=obj_info)
     elif msg is None:
+        if object_name == "everything":
+            object_name = "anything"
         msg = f"Watchman did not see {object_name} recently."
         rsp = build_response(msg, obj_info=obj_info)
     else:
@@ -442,7 +444,12 @@ def check_skill_id():
     try:
         skill_id = alexa_request["session"]["application"]["applicationId"]
     except KeyError:
-        skill_id = alexa_request["context"]["System"]["application"]["applicationId"]
+        skill_id = None
+    if skill_id is None:
+        try:
+            skill_id = alexa_request["context"]["System"]["application"]["applicationId"]
+        except KeyError:
+            skill_id = "not-specified"
     if skill_id != ALEXA_SKILL_ID:
         abort(403, description="Unauthorized request")
 
@@ -527,7 +534,7 @@ def handle_alexa_request():
             msg += "For a single question, prefix it with 'Alexa, ask my watchman'. For multiple, say 'Alexa, open my watchman' to start "
             msg += "the conversation, then ask all your questions directly without any prefix. "
             msg += "To control the system you can ask watchman to enable or disable the alerts or the location services. "
-            msg += "You can also ask watchman to list the objects or channels it can monitor."
+            msg += "You can also ask watchman to list the active services, objects or channels it can monitor."
             return build_response(msg)
 
         elif intent_name in ["AMAZON.CancelIntent", "AMAZON.StopIntent", "WeAreDoneIntent"]:
