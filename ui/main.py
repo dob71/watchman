@@ -2,9 +2,7 @@ import streamlit as st
 import numpy as np
 import time
 
-from gtts import gTTS
 from io import BytesIO
-from streamlit_mic_recorder import speech_to_text
 
 import json
 import os
@@ -15,12 +13,12 @@ import sys
 sys.path.append(os.path.dirname(__file__))
 sys.path.append(os.path.abspath("."))
 
-from dotenv import load_dotenv
 from shared_settings import *
 
 # Figure the path to the data folders depending on where we run
 DATA_DIR = ''
 if not os.path.exists('/.dockerenv'):
+    from dotenv import load_dotenv
     load_dotenv('./.env')
     DATA_DIR = os.getenv('DATA_DIR')
 
