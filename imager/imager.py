@@ -257,6 +257,8 @@ def main_loop(iteration):
     global CRUN
     # Pull images from channels, jasonify and put into the channel folders
     # Store a raw version for debugging/visualization purposes
+    if CFG_channels_key not in CFG:
+        return
     channels = CFG[CFG_channels_key]
     for idx, ch in enumerate(channels):
         chan_id = ch[CFG_chan_id_key]
