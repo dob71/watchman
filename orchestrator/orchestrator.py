@@ -182,6 +182,8 @@ class ChannelOrchestrator:
         # Get image data
         try:
             self.chan_id = image_js[IMG_chan_key]
+            if not self.chan_id == self.chan:
+                print(f"{sys._getframe().f_code.co_name}: error, channel folder name and ID mismatch: id: {self.chan_id}, chan dir: {self.chan}")
             self.chan_name = image_js[IMG_name_key]
             self.img_data = base64.b64decode(image_js[IMG_data_key])
             self.img_time = image_js[IMG_time_key]
@@ -311,15 +313,47 @@ class ChannelOrchestrator:
             e_list.append(evt)
         return obj_js, e_list
 
+    # Run a check if there is anything active on the channel, return false if not
+    def is_object_watched(self, o):
+        obj_id = o[CFG_obj_id_key]
+        obj_svcs = o[CFG_obj_svcs_key]
+        # Is this channel in the skip list for th eobject?
+        if self.chan in o.get(CFG_osvc_skip_chan_key, []):
+            return False
+        # Object events directory
+        obj_dir =  f"{EVTDIR}/{self.chan}/{obj_id}"
+        # Check for any service being enabled.
+        enabled_services = False
+        for s in obj_svcs:
+            obj_svc_off_file = f"{obj_dir}/{s[CFG_osvc_name_key]}.off"
+            if not os.path.exists(obj_svc_off_file):
+                enabled_services = True
+                break
+        return enabled_services
+
     # Handle channel (called from main loop to process each channel),
     # it should run in its own thread or process eventually
     def loop_run(self):
         global CFG
+        # get list of objects to go over (conformity to schema already verified)
+        objects = CFG[CFG_obj_objects_key]
+        # handle disabling imager channels that are not being watched now
+        watched_count = 0
+        for o in objects:
+            watched_count += 1 if self.is_object_watched(o) else 0
+        off_file_pathname = f"{IMGDIR}/{self.chan}/{IMG_off_file_name}"
+        if watched_count <= 0:
+            if not os.path.exists(off_file_pathname):
+                print(f"{sys._getframe().f_code.co_name}: turning channel {self.chan} off, nothing to watch for now")
+                open(off_file_pathname, 'w').close()
+        else:
+            if os.path.exists(off_file_pathname):
+                print(f"{sys._getframe().f_code.co_name}: turning channel {self.chan} on now")
+                try: os.unlink(off_file_pathname)
+                except: pass
         # read image JSON
         if not self.read_image_data():
             return
-        # get list of objects to go over (conformity to schema already verified)
-        objects = CFG[CFG_obj_objects_key]
         # Go over the objects of interest, ask ML model about them in the image
         # and if discovered anything interesting update the event files
         for o in objects:

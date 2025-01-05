@@ -359,34 +359,6 @@ def list_items(component_id):
     # Add to the response the updated list of teacked object names
     return rsp
 
-# Run a check on any imager channels needing to (de)actiivated due to no
-# configured and active objects or service on them.
-# obj_info - list of objects from collect_evt_obj_info()
-def handle_de_activating_channels(obj_info):
-    active_per_chan = {}
-    for pn, obj in obj_info.items():
-        try:
-            chan_id = obj[EVT_obj_cid_key]
-            obj_services = obj[EVT_osvc_list_key]
-        except:
-            continue
-        for s in obj_services:
-            svc_off_pname = f"{pn}/{s}.off"
-            if os.path.exists(svc_off_pname):
-                continue
-            active_per_chan[chan_id] = active_per_chan.get(chan_id, 0) + 1
-    img_chans = list(filter(lambda x : not x.startswith('.'), os.listdir(IMGDIR)))
-    for chan_id in img_chans:
-        off_file_pathname = f"{IMGDIR}/{chan_id}/{IMG_off_file_name}"
-        try:
-            if active_per_chan.get(chan_id, 0) > 0:
-                os.unlink(off_file_pathname)
-            else:
-                open(off_file_pathname, 'w').close()
-        except:
-            pass
-    return
-
 # perform the requested service control actions
 def service_control(obj_info, operation, service, object_id, channel_id):
     count = 0
@@ -421,9 +393,6 @@ def service_control(obj_info, operation, service, object_id, channel_id):
                 count += 1
         except:
             continue
-    # If changes were made, check for imager channels that need to be (de)activated
-    if count > 0:
-        handle_de_activating_channels(obj_info)
     # Generate the response message to return to the user
     msg = f"Done with {operation[:-1]}ing {service} for {match_obj_name} on {match_chan_name} channel"
     msg += ", " if channel_id != ANYCHANNEL[0] else "s, "
