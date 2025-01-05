@@ -7,6 +7,7 @@ services:
       context: .
       dockerfile: orchestrator/Dockerfile
     container_name: orchestrator-container
+    network_mode: host
     volumes:
       - ${DATA_DIR:-.}/images:/images
       - ${DATA_DIR:-.}/sysconfig:/sysconfig
