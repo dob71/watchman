@@ -4,7 +4,7 @@
       "custom": {
         "endpoint": {
           "sslCertificateType": "Trusted",
-          "uri": "https://www.okob.net/watchman"
+       --->"uri": "https://replace.with.your.url/watchman"<---
         },
         "interfaces": [],
         "locales": {}

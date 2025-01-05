@@ -14,7 +14,7 @@
 # 5. Start the Watchman services by executing this script (from the project's
 #    root folder).
 # 6. Open the UI by pointing the browser to http://localhost:8000/ and
-#    configure the system's input video deefs and objects of interest.
+#    configure the system's input video feeds and objects of interest.
 #    Confirm the system is working. For troubleshooting check logs located
 #    in the LOGS_DIR per your .env settings (by default stored in "logs"
 #    folder uder DATA_DIR).
@@ -24,6 +24,17 @@
 . ./.env
 export LOGS_DIR="${LOGS_DIR:-${DATA_DIR}/logs}"
 export UI_PORT="${UI_PORT:-8000}"
+
+if [ "${DATA_DIR}" == "" ]; then
+  echo "The DATA_DIR cannot be empty, please set up DATA_DIR in your .env file!"
+  exit 1
+fi
+
+if [ ! -e "${DATA_DIR}" ]; then
+  echo "The DATA_DIR \"${DATA_DIR}\" does not exist, creating..."
+  ! mkdir -p "${DATA_DIR}" && echo "Unable to create \"${DATA_DIR}\", exiting!" && exit 2
+fi
+
 mkdir -p "$LOGS_DIR"
 
 # export all the evironment to subshells

@@ -38,7 +38,7 @@ class OllamaSimpleInterface:
     # returns: tuple with the True/False for the detection result and a string with the verbal description of the location
     def locate(self, image_data, obj_desc, image_desc):
         prompt = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>You are a helpful, concise assistant for locating objects in an image<|eot_id|>" + \
-                f"<|start_header_id|>user<|end_header_id|><|image|>Is there {obj_desc} on this image of the {image_desc}? Answer strictly Yes or No.<|eot_id|>" + \
+                f"<|start_header_id|>user<|end_header_id|><|image|>Is there {obj_desc} in this image of the {image_desc}? Answer strictly Yes or No.<|eot_id|>" + \
                 "<|start_header_id|>assistant<|end_header_id|>"
         rsp = generate(
             model=self.model_to_use,
@@ -82,7 +82,7 @@ class OllamaComplexInterface:
     # returns: tuple with the True/False for the detection result and a string with the verbal description of the location
     def locate(self, image_data, obj_desc, image_desc):
         prompt = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>You are a helpful, concise assistant for locating objects in an image<|eot_id|>" + \
-                f"<|start_header_id|>user<|end_header_id|><|image|>Is there {obj_desc} on this image of the {image_desc}? Answer strictly Yes or No.<|eot_id|>" + \
+                f"<|start_header_id|>user<|end_header_id|><|image|>Is there {obj_desc} in this image of the {image_desc}? Answer strictly Yes or No.<|eot_id|>" + \
                 "<|start_header_id|>assistant<|end_header_id|>"
         rsp = generate(
             model=self.model_to_use,
@@ -95,7 +95,7 @@ class OllamaComplexInterface:
         if rsp.done and not "yes" in rsp.response.lower():
             return ret, msg
         prompt = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>You are a helpful, concise assistant for locating objects in an image<|eot_id|>" + \
-                f"<|start_header_id|>user<|end_header_id|><|image|>What's the **Location** of {obj_desc} on this image of the {image_desc}? Answer strictly with its **Location**<|eot_id|>" + \
+                f"<|start_header_id|>user<|end_header_id|><|image|>What's the **Location** of {obj_desc} in this image of the {image_desc}? Answer strictly with its **Location**<|eot_id|>" + \
                 "<|start_header_id|>assistant<|end_header_id|>"
         rsp = generate(
             model=self.model_to_use,

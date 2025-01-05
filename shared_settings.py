@@ -23,7 +23,7 @@ CFG_obj_objects_key = "objects"  # list of objects of interest
 CFG_obj_id_key = "obj_id"        # unique ID of the object of interest (single word, used as the object dir name in the events folder)
 CFG_obj_names_key = "names"      # names of the object of interest (object name coming from Alexa should match one of them to get the answer)
 CFG_obj_desc_key = "desc"        # object description string suitable for identifying the object by the model (transparently passed to the model interface class)
-CFG_obj_svcs_key = "obj_svcs"    # list of services (only location and alert for now) configured for the object of interest
+CFG_obj_svcs_key = "obj_svcs"    # list of services (user visible are only location and alerts for now) configured for the object of interest
 # allowed service names
 CFG_loc_svc_name = "location"    # name of the location service (used to generate name of files in the events folder)
 CFG_alrt_svc_name = "alert"      # name of the alert service (used to generate name of files in the events folder)

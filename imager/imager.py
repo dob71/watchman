@@ -8,6 +8,7 @@ import json
 import time
 import base64
 import signal
+import imghdr
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -135,6 +136,12 @@ class ChannelDownloadRunner:
                     return
         except:
             print(f"{sys._getframe().f_code.co_name}: error loading image from {url}")
+            return
+
+        # Make sure we downloaded an image
+        file_type = imghdr.what(img_file_pathname)
+        if not file_type in ['gif', 'jpeg', 'png', 'webp']: # for now just pass through what LLAMA 3.2 Vision supports
+            print(f"{sys._getframe().f_code.co_name}: only 'gif', 'jpeg', 'png' and 'webp' are allowed, got '{file_type}' from {url}")
             return
 
         # Construct image JSON file
