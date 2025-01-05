@@ -4,20 +4,20 @@ FROM python:3.10-slim
 # Set the working directory in the container
 WORKDIR /
 
-# Copy the current directory contents into the container at /imager
-COPY imager /imager
+# Copy the current directory contents into the container at /vcs
+COPY vcs /vcs
 
 # Copy the settings file
 COPY shared_settings.py /
 
+COPY requirements.txt /
+COPY .env /
+
 # Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r /imager/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Make port available to the world outside this container
-# EXPOSE 8080
+EXPOSE 8080
 
-# Define environment variable
-# ENV NAME val
-
-# Run imager.py when the container launches
-CMD ["python3", "/imager/imager.py"]
+# Run responder.py when the container launches
+CMD ["python3", "/vcs/responder.py"]

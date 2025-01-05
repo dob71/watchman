@@ -1,3 +1,2 @@
 streamlit
-gTTS
-streamlit-mic-recorder
+

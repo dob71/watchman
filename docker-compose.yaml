@@ -3,16 +3,18 @@ version: '3.8'
 services:
   orchestrator:
     image: orchestrator-image
+    build:
+      context: .
+      dockerfile: orchestrator/Dockerfile
     container_name: orchestrator-container
     volumes:
-      - ./images:/images
-      - ./sysconfig:/sysconfig
-      - ./events:/events
-    depends_on:
-      - ui
-      - alexa
-      - imager
-      #- llm
+      - ${DATA_DIR:-.}/images:/images
+      - ${DATA_DIR:-.}/sysconfig:/sysconfig
+      - ${DATA_DIR:-.}/events:/events
+#    depends_on:
+#      - announcer
+#      - responder
+#      - imager
 
   # Ollama can be used locally or in docker
   # Under Linux it's esier to install locally: 
@@ -43,9 +45,29 @@ services:
   #              device_ids: ['all']
   #              capabilities: [gpu]
 
-  alexa:
-    image: alexa-image
-    container_name: alexa-container
+  announcer:
+    image: announcer-image
+    build:
+      context: .
+      dockerfile: vcs/Dockerfile-announcer
+    container_name: announcer-container
+    environment:
+      NOTIFY_ME_ID: ${NOTIFY_ME_ID}
+    volumes:
+      - ${DATA_DIR:-.}/images:/images
+      - ${DATA_DIR:-.}/sysconfig:/sysconfig
+      - ${DATA_DIR:-.}/events:/events
+  
+  responder:
+    image: responder-image
+    build:
+      context: .
+      dockerfile: vcs/Dockerfile-responder
+    container_name: responder-container
+    environment:
+      ALEXA_SKILL_ID: ${ALEXA_SKILL_ID}
+    ports:
+      - "8080:8080"
     volumes:
       - ${DATA_DIR:-.}/images:/images
       - ${DATA_DIR:-.}/sysconfig:/sysconfig
@@ -53,6 +75,9 @@ services:
 
   imager:
     image: imager-image
+    build:
+      context: .
+      dockerfile: imager/Dockerfile
     container_name: imager-container
     volumes:
       - ${DATA_DIR:-.}/images:/images
@@ -61,6 +86,9 @@ services:
 
   ui:
     image: ui-image
+    build:
+      context: .
+      dockerfile: ui/Dockerfile
     container_name: ui-container
     ports:
       - "8501:8501"
