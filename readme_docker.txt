@@ -11,3 +11,7 @@ To do this, the following steps need to be performed:
 - Run 'docker-compose up --build' from the top-level directory of the repository.
 - To stop the app, hit ctrl-c
 
+Limitations
+===========
+- Currently the docker-based deployment does not yet support the ALERT_SCRIPT feature. Make sure .env does
+  not set this variable.
