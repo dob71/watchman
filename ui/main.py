@@ -379,16 +379,19 @@ if __name__ == "__main__":
                 st.rerun()  # Rerun to reflect changes immediately
 
             if st.form_submit_button(label='Confirm configuration', type='primary'):
-                print("Streaming mode: Producing sources.json file")
-                st.session_state.sources_version += 1
-                output_sources_json(st.session_state.channel_input,
-                                    st.session_state.name_input,
-                                    st.session_state.url_input,
-                                    st.session_state.slider_input,
-                                    st.session_state.sources_version)
+                if len(st.session_state.channel_input) != len(set(st.session_state.channel_input)):
+                    st.error("Error: Channel IDs should be unique. Please fix before confirmation.")
+                else:
+                    print("Streaming mode: Producing sources.json file")
+                    st.session_state.sources_version += 1
+                    output_sources_json(st.session_state.channel_input,
+                                        st.session_state.name_input,
+                                        st.session_state.url_input,
+                                        st.session_state.slider_input,
+                                        st.session_state.sources_version)
 
-                st.session_state.app_state = "init"
-                st.rerun()
+                    st.session_state.app_state = "init"
+                    st.rerun()
 
         # Add a "Back" button to go back to the start form
         if st.button("Back"):
@@ -419,9 +422,9 @@ if __name__ == "__main__":
 
             for i in range(st.session_state.num_objects):
                 st.divider()
-                st.session_state.obj_id_input[i] = st.selectbox("Object type " + str(i), obj_ids_selection,
-                                                                key="obj_id" + str(i),
-                                                                index=obj_ids_selection.index(st.session_state.obj_id_input[i]))
+                st.session_state.obj_id_input[i] = st.text_input("Object ID " + str(i),
+                                                               key="obj_id" + str(i),
+                                                               value=st.session_state.obj_id_input[i])
                 st.session_state.obj_names_input[i] = st.text_input("Object names " + str(i) + " (comma separated list)",
                                                                     key="obj_names" + str(i),
                                                                     value=st.session_state.obj_names_input[i])
@@ -443,16 +446,19 @@ if __name__ == "__main__":
                 st.rerun()  # Rerun to reflect changes immediately
 
             if st.form_submit_button(label='Confirm configuration', type='primary'):
-                print("Streaming mode: Producing objects.json file")
-                st.session_state.objects_version += 1
-                output_objects_json(st.session_state.obj_id_input,
-                                    st.session_state.obj_names_input,
-                                    st.session_state.desc_input,
-                                    st.session_state.obj_svcs_input,
-                                    st.session_state.model,
-                                    st.session_state.objects_version)
-                st.session_state.app_state = "init"
-                st.rerun()
+                if len(st.session_state.obj_id_input) != len(set(st.session_state.obj_id_input)):
+                    st.error("Error: Object IDs should be unique. Please fix before confirmation.")
+                else:
+                    print("Streaming mode: Producing objects.json file")
+                    st.session_state.objects_version += 1
+                    output_objects_json(st.session_state.obj_id_input,
+                                        st.session_state.obj_names_input,
+                                        st.session_state.desc_input,
+                                        st.session_state.obj_svcs_input,
+                                        st.session_state.model,
+                                        st.session_state.objects_version)
+                    st.session_state.app_state = "init"
+                    st.rerun()
 
         # Add a "Back" button to go back to the start form
         if st.button("Back"):
