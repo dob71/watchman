@@ -10,6 +10,7 @@ COPY vcs /vcs
 # Copy the settings file
 COPY shared_settings.py /
 
+# Copy requirements and environment file
 COPY requirements.txt /
 COPY .env /
 

@@ -13,11 +13,5 @@ COPY shared_settings.py /
 # Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r /imager/requirements.txt
 
-# Make port available to the world outside this container
-# EXPOSE 8080
-
-# Define environment variable
-# ENV NAME val
-
 # Run imager.py when the container launches
 CMD ["python3", "/imager/imager.py"]

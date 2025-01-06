@@ -11,6 +11,7 @@ COPY llm /llm
 # Copy the settings file
 COPY shared_settings.py /
 
+# Copy requirements
 COPY requirements.txt /
 
 # Install any needed packages specified in requirements.txt
@@ -23,9 +24,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pciutils \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Ollama
 RUN curl -fsSL https://ollama.com/install.sh | sh
-
-#RUN ollama pull llama3.2-vision:11b-instruct-q4_K_M
 
 # Run orchestrator.py when the container launches
 CMD ["python3", "-u", "/orchestrator/orchestrator.py"]

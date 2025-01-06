@@ -12,10 +12,6 @@ services:
       - ${DATA_DIR:-.}/images:/images
       - ${DATA_DIR:-.}/sysconfig:/sysconfig
       - ${DATA_DIR:-.}/events:/events
-#    depends_on:
-#      - announcer
-#      - responder
-#      - imager
 
   # Ollama can be used locally or in docker
   # Under Linux it's esier to install locally: 
