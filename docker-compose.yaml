@@ -7,11 +7,11 @@ services:
       context: .
       dockerfile: orchestrator/Dockerfile
     container_name: orchestrator-container
+    environment:
+      DATA_DIR: /data
     network_mode: host
     volumes:
-      - ${DATA_DIR:-.}/images:/images
-      - ${DATA_DIR:-.}/sysconfig:/sysconfig
-      - ${DATA_DIR:-.}/events:/events
+      - ${DATA_DIR:-.}:/data
 
   # Ollama can be used locally or in docker
   # Under Linux it's esier to install locally: 
@@ -31,9 +31,6 @@ services:
   #    restart: on-failure
   #    volumes:
   #      - ${OLLAMA_MODELS_DIR:-./ollama}:/root/.ollama
-  #      - ${DATA_DIR:-.}/images:/images
-  #      - ${DATA_DIR:-.}/sysconfig:/sysconfig
-  #      - ${DATA_DIR:-.}/events:/events
   #    deploy:
   #      resources:
   #        reservations:
@@ -50,12 +47,12 @@ services:
     container_name: announcer-container
     environment:
       NOTIFY_ME_ID: ${NOTIFY_ME_ID}
+      ALERT_SCRIPT: /alert_script.sh
       DATA_DIR: /data
     volumes:
-      - ${DATA_DIR:-.}/images:/images
-      - ${DATA_DIR:-.}/sysconfig:/sysconfig
-      - ${DATA_DIR:-.}/events:/data/events
-  
+      - ${DATA_DIR:-.}:/data
+      - ${ALERT_SCRIPT:-./vcs/alert_script_example.sh}:/alert_script.sh
+
   responder:
     image: responder-image
     build:
@@ -64,12 +61,11 @@ services:
     container_name: responder-container
     environment:
       ALEXA_SKILL_ID: ${ALEXA_SKILL_ID}
+      DATA_DIR: /data
     ports:
       - "8080:8080"
     volumes:
-      - ${DATA_DIR:-.}/images:/images
-      - ${DATA_DIR:-.}/sysconfig:/sysconfig
-      - ${DATA_DIR:-.}/events:/events
+      - ${DATA_DIR:-.}:/data
 
   imager:
     image: imager-image
@@ -77,10 +73,10 @@ services:
       context: .
       dockerfile: imager/Dockerfile
     container_name: imager-container
+    environment:
+      DATA_DIR: /data
     volumes:
-      - ${DATA_DIR:-.}/images:/images
-      - ${DATA_DIR:-.}/sysconfig:/sysconfig
-      - ${DATA_DIR:-.}/events:/events
+      - ${DATA_DIR:-.}:/data
 
   ui:
     image: ui-image
@@ -88,10 +84,10 @@ services:
       context: .
       dockerfile: ui/Dockerfile
     container_name: ui-container
+    environment:
+      DATA_DIR: /data
     ports:
       - "8501:8501"
     volumes:
-      - ${DATA_DIR:-.}/images:/images
-      - ${DATA_DIR:-.}/sysconfig:/sysconfig
-      - ${DATA_DIR:-.}/events:/events
+      - ${DATA_DIR:-.}:/data
 

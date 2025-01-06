@@ -20,7 +20,7 @@ DATA_DIR = ''
 if not os.path.exists('/.dockerenv'):
     from dotenv import load_dotenv
     load_dotenv('./.env')
-    DATA_DIR = os.getenv('DATA_DIR')
+DATA_DIR = os.getenv('DATA_DIR', DATA_DIR)
 
 # We'll need the images and config folders.
 IMGDIR = f"{DATA_DIR}/{IMG_dir}"

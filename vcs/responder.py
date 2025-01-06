@@ -18,7 +18,7 @@ from vcs_lib import *
 DATA_DIR = ''
 if not os.path.exists('/.dockerenv'):
     load_dotenv('./.env')
-    DATA_DIR = os.getenv('DATA_DIR')
+DATA_DIR = os.getenv('DATA_DIR', DATA_DIR)
 
 # We'll need to access the evt and imager folders only.
 EVTDIR = f"{DATA_DIR}/{EVT_dir}"

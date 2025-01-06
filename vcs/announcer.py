@@ -18,7 +18,7 @@ from vcs_lib import *
 DATA_DIR = ''
 if not os.path.exists('/.dockerenv'):
     load_dotenv('./.env')
-    DATA_DIR = os.getenv('DATA_DIR')
+DATA_DIR = os.getenv('DATA_DIR', DATA_DIR)
 
 # Alexa skill ID for request verification
 NOTIFY_ME_ID = os.getenv('NOTIFY_ME_ID')

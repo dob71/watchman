@@ -28,7 +28,7 @@ from model_interfaces import *
 DATA_DIR = ''
 if not os.path.exists('/.dockerenv'):
     load_dotenv('./.env')
-    DATA_DIR = os.getenv('DATA_DIR')
+DATA_DIR = os.getenv('DATA_DIR', DATA_DIR)
 
 # We'll need the images and config folders.
 CFGDIR = f"{DATA_DIR}/{CFG_dir}"
