@@ -50,10 +50,11 @@ services:
     container_name: announcer-container
     environment:
       NOTIFY_ME_ID: ${NOTIFY_ME_ID}
+      DATA_DIR: /data
     volumes:
       - ${DATA_DIR:-.}/images:/images
       - ${DATA_DIR:-.}/sysconfig:/sysconfig
-      - ${DATA_DIR:-.}/events:/events
+      - ${DATA_DIR:-.}/events:/data/events
   
   responder:
     image: responder-image
