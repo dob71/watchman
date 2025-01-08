@@ -126,7 +126,7 @@ class ChannelDownloadRunner:
                     print(f"{sys._getframe().f_code.co_name}: error, {src_file} is not a file")
                     return
             else:
-                response = requests.get(url, verify=False, stream=True)
+                response = requests.get(url, verify=False, stream=True, timeout=10)
                 if response.status_code == 200:
                     with open(img_file_pathname, "wb") as f:
                         for chunk in response.iter_content(1024):

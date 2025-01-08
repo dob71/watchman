@@ -53,7 +53,7 @@ def do_announcement(msg):
             "accessCode": NOTIFY_ME_ID
         }
         try:
-            response = requests.post(NOTIFY_ME_URL, json=data)
+            response = requests.post(NOTIFY_ME_URL, json=data, timeout=10)
             if int(response.status_code / 100)  == 2:
                 res = True
             else:
