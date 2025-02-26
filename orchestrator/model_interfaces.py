@@ -1,6 +1,99 @@
 # This file is for classes defining model interfaces for intracting w/ ML models
 # Note: the model interface here should be just that, the interface, the model shold be served elsewhere
 from ollama import chat, generate
+import openai
+
+class VLLMComplexInterface:
+    def __init__(self, model_to_use=None, api_key='NONE', api_base='http://localhost:5050/v1'):
+        self.api_base = api_base
+        self.client = openai.OpenAI(api_key=api_key, base_url=api_base)
+        if model_to_use is None:
+            models = self.client.models.list()
+            for m in models:
+                model_to_use = m.id
+                break
+        self.model_to_use = model_to_use
+        print(f"Using model: {self.model_to_use} with API base: {self.api_base}")
+
+    def __del__(self):
+        print(f"Unloading model interface for: {self.model_to_use}")
+
+    @staticmethod
+    def model_name():
+        return "vllm-complex"
+
+    def gen_detect_prompt(self, obj_desc, image_desc):
+        prompt = (
+            "<|begin_of_text|><|start_header_id|>system<|end_header_id|>"
+            "You are a helpful, concise assistant for locating objects in an image<|eot_id|>"
+            f"<|start_header_id|>user<|end_header_id|><|image|>Is there {obj_desc} "
+            f"in this image of the {image_desc}? Answer strictly Yes or No.<|eot_id|>"
+            "<|start_header_id|>assistant<|end_header_id|>"
+        )
+        return prompt
+
+    def gen_locate_prompt(self, obj_desc, image_desc):
+        prompt = (
+            "<|begin_of_text|><|start_header_id|>system<|end_header_id|>"
+            "You are a helpful, concise assistant for locating objects in an image<|eot_id|>"
+            f"<|start_header_id|>user<|end_header_id|><|image|>What's the **Location** "
+            f"of {obj_desc} in this image of the {image_desc}? "
+            "Answer in one sentence describing the **Location**.<|eot_id|>"
+            "<|start_header_id|>assistant<|end_header_id|>"
+        )
+        return prompt
+
+    def locate(self, image_data, obj_desc, image_desc, image_format='jpeg'):
+        prompt = self.gen_detect_prompt(obj_desc, image_desc)
+        ret = False
+        msg = None
+        try:
+            rsp = self.client.chat.completions.create(
+                model=self.model_to_use,
+                messages=[
+                    {
+                        "role": "watchman",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {"type": "image_url", "image_url": {"url": f"data:image/{image_format};base64,{image_data}"}},
+                        ]
+                    }
+                ],
+                temperature=0.0,
+                max_completion_tokens=8,
+                stop='.',
+            )
+            if 'yes' not in rsp.choices[0].message.content.lower():
+                msg = ""
+                return ret, msg
+        except Exception as e:
+            print(f"Exception querying VLLM {self.model_to_use}: {e}")
+            return ret, msg
+
+        ret = True
+        msg = ""
+        prompt = self.gen_locate_prompt(obj_desc, image_desc)
+        try:
+            rsp = self.client.chat.completions.create(
+                model=self.model_to_use,
+                messages=[
+                    {
+                        "role": "watchman",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {"type": "image_url", "image_url": {"url": f"data:image/{image_format};base64,{image_data}"}},
+                        ]
+                    }
+                ],
+                temperature=0.0,
+                max_completion_tokens=32,
+                stop='.',
+            )
+            if rsp:
+                msg = rsp.choices[0].message.content.lower()
+        except:
+            pass
+        return ret, msg
 
 class OllamaSimpleInterface:
     def __init__(self, model_to_use='llama3.2-vision:11b-instruct-fp16'):
@@ -13,7 +106,6 @@ class OllamaSimpleInterface:
             print(f"Model: {rsp.model}, result:{rsp.done_reason}")
         except Exception as e:
             print(f"Exception loading {self.model_to_use}: {e}")
-
 
     def __del__(self):
         try:
@@ -31,26 +123,31 @@ class OllamaSimpleInterface:
     def model_name():
         return "ollama-simple"
 
+    # Detector prompt generator
+    def gen_detect_prompt(self, obj_desc, image_desc):
+        prompt = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>You are a helpful, concise assistant for locating objects in an image<|eot_id|>" + \
+                f"<|start_header_id|>user<|end_header_id|><|image|>Is there {obj_desc} in this image of the {image_desc}? Answer strictly Yes or No.<|eot_id|>" + \
+                "<|start_header_id|>assistant<|end_header_id|>"
+        return prompt
+
     # Object locator interface
     # image_data: bas64 encoded image data
     # obj_desc: object description string (comes from config)
     # image_desc: image description (might be used to hint the model or generate message programmatically)
     # returns: tuple with the True/False for the detection result and a string with the verbal description of the location
     def locate(self, image_data, obj_desc, image_desc):
-        prompt = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>You are a helpful, concise assistant for locating objects in an image<|eot_id|>" + \
-                f"<|start_header_id|>user<|end_header_id|><|image|>Is there {obj_desc} in this image of the {image_desc}? Answer strictly Yes or No.<|eot_id|>" + \
-                "<|start_header_id|>assistant<|end_header_id|>"
+        prompt = self.gen_detect_prompt(obj_desc, image_desc)
         rsp = generate(
             model=self.model_to_use,
             prompt=prompt,
             images=[image_data],
-            options={'temperature': 0.0},
+            options={'temperature': 0.0, "template": None},
         )
         ret = False
         msg = None
         if rsp.done and "yes" in rsp.response.lower():
             ret = True
-            msg = f""
+            msg = ""
         return ret, msg
 
 class OllamaComplexInterface:
@@ -81,33 +178,46 @@ class OllamaComplexInterface:
     def model_name():
         return "ollama-complex"
 
+    # Detector prompt generator
+    def gen_detect_prompt(self, obj_desc, image_desc):
+        prompt = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>You are a helpful, concise assistant for locating objects in an image<|eot_id|>" + \
+                f"<|start_header_id|>user<|end_header_id|><|image|>Is there {obj_desc} in this image of the {image_desc}? Answer strictly Yes or No.<|eot_id|>" + \
+                "<|start_header_id|>assistant<|end_header_id|>"
+        return prompt
+
+    # Location prompt generator
+    def gen_locate_prompt(self, obj_desc, image_desc):
+        prompt = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>You are a helpful, concise assistant for locating objects in an image<|eot_id|>" + \
+                f"<|start_header_id|>user<|end_header_id|><|image|>What's the **Location** of {obj_desc} in this image of the {image_desc}? Answer strictly with its **Location**.<|eot_id|>" + \
+                "<|start_header_id|>assistant<|end_header_id|>"
+        return prompt
+
     # Object locator interface
     # image_data: bas64 encoded image data
     # obj_desc: object description string (comes from config)
     # image_desc: image description (might be used to hint the model or generate message programmatically)
     # returns: tuple with the True/False for the detection result and a string with the verbal description of the location
     def locate(self, image_data, obj_desc, image_desc):
-        prompt = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>You are a helpful, concise assistant for locating objects in an image<|eot_id|>" + \
-                f"<|start_header_id|>user<|end_header_id|><|image|>Is there {obj_desc} in this image of the {image_desc}? Answer strictly Yes or No.<|eot_id|>" + \
-                "<|start_header_id|>assistant<|end_header_id|>"
+        prompt = self.gen_detect_prompt(obj_desc, image_desc)
         rsp = generate(
             model=self.model_to_use,
             prompt=prompt,
             images=[image_data],
-            options={'temperature': 0.0},
+            options={'temperature': 0.0, "template": None},
         )
         ret = False
         msg = None
-        if rsp.done and not "yes" in rsp.response.lower():
+        if not rsp.done:
             return ret, msg
-        prompt = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>You are a helpful, concise assistant for locating objects in an image<|eot_id|>" + \
-                f"<|start_header_id|>user<|end_header_id|><|image|>What's the **Location** of {obj_desc} in this image of the {image_desc}? Answer strictly with its **Location**<|eot_id|>" + \
-                "<|start_header_id|>assistant<|end_header_id|>"
+        msg = ""
+        if not "yes" in rsp.response.lower():
+            return ret, msg
+        prompt = self.gen_locate_prompt(obj_desc, image_desc)
         rsp = generate(
             model=self.model_to_use,
             prompt=prompt,
             images=[image_data],
-            options={'temperature': 0.0},
+            options={'temperature': 0.0, "template": None},
         )
         if rsp.done:
             ret = True
@@ -118,4 +228,5 @@ class OllamaComplexInterface:
 MODELS = {
     OllamaSimpleInterface.model_name(): OllamaSimpleInterface,
     OllamaComplexInterface.model_name(): OllamaComplexInterface,
+    VLLMComplexInterface.model_name(): VLLMComplexInterface,
 }

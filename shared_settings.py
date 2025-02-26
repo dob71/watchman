@@ -18,6 +18,9 @@ CFG_DEF_upd_int = 2              # default update interval for channels (in numb
 # objects config JASON
 CFG_obj_version_key = "version"  # config update counter (for detecting changes)
 CFG_obj_model_key = "model"      # ML model interface ID string (see in the code, default "ollama-simple")
+CFG_obj_model_name_key = "model_name" # model name to pass to the model interface (optional, see in the code, default varies)
+CFG_obj_model_url_key = "model_url"   # URL to pass to the model interface (optional, see in the code, default varies)
+CFG_obj_model_tkn_key = "model_tkn"   # token or key to pass to the model interface (optional, see in the code, default varies)
 CFG_obj_objects_key = "objects"  # list of objects of interest
 # object config JASON keys for each entry in the list of objects of interest
 CFG_obj_id_key = "obj_id"        # unique ID of the object of interest (single word, used as the object dir name in the events folder)

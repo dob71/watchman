@@ -146,7 +146,14 @@ def read_and_apply_config():
     if not MODEL is None:
         del MODEL
     if CFG[CFG_obj_model_key] in MODELS.keys():
-        MODEL = MODELS[CFG[CFG_obj_model_key]]()
+        params = {}
+        if CFG_obj_model_name_key in CFG.keys():
+            params['model_to_use'] = CFG[CFG_obj_model_name_key]
+        if CFG_obj_model_url_key in CFG.keys():
+            params['api_base'] = CFG[CFG_obj_model_url_key]
+        if CFG_obj_model_tkn_key in CFG.keys():
+            params['api_key'] = CFG[CFG_obj_model_tkn_key]
+        MODEL = MODELS[CFG[CFG_obj_model_key]](**params)
     else: # no matching model interface, can't do anything
         print(f"{sys._getframe().f_code.co_name}: no \"{CFG[CFG_obj_model_key]}\" model interface found")
         CFG[CFG_obj_objects_key] = []
@@ -185,6 +192,7 @@ class ChannelOrchestrator:
             if not self.chan_id == self.chan:
                 print(f"{sys._getframe().f_code.co_name}: error, channel folder name and ID mismatch: id: {self.chan_id}, chan dir: {self.chan}")
             self.chan_name = image_js[IMG_name_key]
+            self.img_base64 = image_js[IMG_data_key]
             self.img_data = base64.b64decode(image_js[IMG_data_key])
             self.img_time = image_js[IMG_time_key]
             self.img_iter = image_js[IMG_iter_key]
@@ -193,13 +201,30 @@ class ChannelOrchestrator:
             return False
         return True
 
-    # Handle capturing images and results for the positive detection in the dataset folder
-    def dataset_capture(self, obj_id, e):
+    # Handle capturing images and results into a dataset for fine-tuning.
+    # The positives go straight to the dataset folder.
+    # The negatives (the last one) are stored in the events folder, and
+    # transferred to the dataset folder only when followed by a positive,
+    # or immediately following a positive.
+    def dataset_capture(self, obj_dir, obj_id, e):
+        max_dataset_dirs = 1000
+        obj_svc_file = f"{obj_dir}/{e[EVT_osvc_key]}.json"
+        obj_svc_img_file = f"{obj_dir}/{e[EVT_osvc_key]}.jpg"
+        captured_negative_file = f"{obj_dir}/{e[EVT_osvc_key]}_cap_negative.flag"
+        negative = (e[EVT_msg_key] == None)
+        if negative:
+            obj_svc_tmp_file = f"{obj_svc_file}.tmp"
+            json_atomic_write(e, obj_svc_tmp_file, obj_svc_file)
+            Path(obj_svc_img_file).write_bytes(self.img_data)
+            if os.path.exists(captured_negative_file):
+                return
+        # if we get here then we need to capture a positive, current or stored negative, or both
+        # find the next available slot and set up paths
         dataset_path = "./.data/dataset" if not CFG_osvc_pname_key in e.keys() else e[CFG_osvc_pname_key]
-        dataset_folder = f"{dataset_path}/{self.chan_id}/{obj_id}"
         index = 1
         index_min = 1
-        index_max = 1000
+        index_max = max_dataset_dirs
+        dataset_folder = f"{dataset_path}/{self.chan_id}/{obj_id}"
         while index_min < index_max:
             if os.path.exists(f"{dataset_folder}/{index}"):
                 index_min = index + 1
@@ -208,22 +233,46 @@ class ChannelOrchestrator:
             else:
                 break
             index = (index_min + index_max) >> 1
-        dataset_folder = f"{dataset_folder}/{index}"
-        os.makedirs(dataset_folder, exist_ok=True)
-        obj_svc_img_file = f"{dataset_folder}/image.jpg"
-        Path(obj_svc_img_file).write_bytes(self.img_data)
-        with open(f"{dataset_folder}/data.json", "w") as f:
-            json.dump(e, f)
+        dataset_folder = f"{dataset_path}/{self.chan_id}/{obj_id}/{index}"
+        dataset_img_file = f"{dataset_folder}/image.jpg"
+        dataset_data_file = f"{dataset_folder}/data.json"
+        dataset_no_file = f"{dataset_folder}/no"
+        # first capture the negative, if avalable and record that we did it
+        if os.path.exists(obj_svc_file) and os.path.exists(obj_svc_img_file):
+            os.makedirs(dataset_folder, exist_ok=True)
+            shutil.move(obj_svc_file, dataset_data_file)
+            shutil.move(obj_svc_img_file, dataset_img_file)
+            try:
+                # mark the sample as negative
+                open(dataset_no_file, 'a').close()
+                # create the flag file stopping us from capturing negatives
+                open(captured_negative_file, 'a').close()
+            except:
+                pass
+            # Update the paths to point to the next slot
+            index += 1
+            dataset_folder = f"{dataset_path}/{self.chan_id}/{obj_id}/{index}"
+            dataset_img_file = f"{dataset_folder}/image.jpg"
+            dataset_data_file = f"{dataset_folder}/data.json"
+        # second, if we are seeing positive, capture it
+        if not negative and index <= max_dataset_dirs:
+            os.makedirs(dataset_folder, exist_ok=True)
+            Path(dataset_img_file).write_bytes(self.img_data)
+            with open(dataset_data_file, "w") as f:
+                json.dump(e, f)
+            # remove the flag file that prevents us from caturing the negatives
+            try: os.unlink(captured_negative_file)
+            except: pass
 
     # All the info is collected and ready, generate the service data files.
     def loop_run_update(self, obj_js, e_list):
         obj_id = obj_js[EVT_obj_id_key]
         obj_dir =  f"{EVTDIR}/{self.chan}/{obj_id}"
         for e in e_list:
-            # For debugging, and fine tuning it migh tbe useful to capture the images and inference results.
+            # For debugging, and fine tuning it might be useful to capture the images and inference results.
             # There's a special sevice "dataset" created for that purpose
             if e[EVT_osvc_key] == CFG_dset_svc_name:
-                self.dataset_capture(obj_id, e)
+                self.dataset_capture(obj_dir, obj_id, e)
                 continue
             # Make the event JSON file
             obj_svc_file = f"{obj_dir}/{e[EVT_osvc_key]}.json"
@@ -244,11 +293,18 @@ class ChannelOrchestrator:
         # we do inference for the object described by obj_desc once, then use message templates to
         # tweak the results to the purpose of the specific service.
         try: 
-            res, loc_msg = MODEL.locate(self.img_data, obj_desc, self.chan_name)
+            res, loc_msg = MODEL.locate(self.img_base64, obj_desc, self.chan_name)
+            #res, loc_msg = MODEL.locate(self.img_data, obj_desc, self.chan_name)
         except Exception as e:
             print(f"{sys._getframe().f_code.co_name}: {MODEL.model_name()} error:", e)
-            res = False
+            return []
+        # if object is not detected, we still report to the dataset service (when it's configured)
         if not res:
+            for e in e_list:
+                if e[EVT_osvc_key] == CFG_dset_svc_name:
+                    e[EVT_in_time_key] = time.time()
+                    e[EVT_msg_key] = None # used as an indicator of the negative sample
+                    return [ e ]
             return [] # object is not on the image or no result
         # update event services objects w/ the inference data
         for e in e_list:
