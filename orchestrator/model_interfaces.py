@@ -7,11 +7,14 @@ class VLLMComplexInterface:
     def __init__(self, model_to_use=None, api_key='NONE', api_base='http://localhost:5050/v1'):
         self.api_base = api_base
         self.client = openai.OpenAI(api_key=api_key, base_url=api_base)
-        if model_to_use is None:
-            models = self.client.models.list()
-            for m in models:
-                model_to_use = m.id
-                break
+        try:
+            if model_to_use is None:
+                models = self.client.models.list()
+                for m in models:
+                    model_to_use = m.id
+                    break
+        except:
+            pass
         self.model_to_use = model_to_use
         print(f"Using model: {self.model_to_use} with API base: {self.api_base}")
 
@@ -48,6 +51,11 @@ class VLLMComplexInterface:
         ret = False
         msg = None
         try:
+            if self.model_to_use is None:
+                models = self.client.models.list()
+                for m in models:
+                    self.model_to_use = m.id
+                    break
             rsp = self.client.chat.completions.create(
                 model=self.model_to_use,
                 messages=[
