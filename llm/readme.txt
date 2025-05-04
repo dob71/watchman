@@ -20,11 +20,11 @@ You'd need to specify
 OLLAMA_MODELS_DIR=<path/where/to/store/model/files>
 in .env file (in the project root).
 
-When the LLAMA3.2 Vision Instuct modeal is served by OLLAMA, Watchman
+When the LLAMA3.2 Vision Instuct model is served by OLLAMA, Watchman
 has to be configured to use "ollama-simple" or "ollama-complex" model
 interfaces (see model_interfaces.py for details). The only diffrence
-between the interfaces is that the latter also ask the model to give
-th elocation of the object on the image.
+between the interfaces is that the latter also asks the model to give
+the location of the object on the image.
 
 2. Serving with vLLM
 
@@ -49,23 +49,38 @@ vllm serve /path/to/repo/llm/trained/watchman_sft_16bit \
 vLLM support was introduced to simplify deploying after fine-tuning using
 Unsloth (Unsloth's exporting to GGUF is not supported for the vision models
 at the moment). See the fine-tuning notebook for the details.
-It also should be able to supports batching (not supported for mllama in OLLAMA).
+It also should be able to support batching (not supported for mllama in OLLAMA
+and not yet levraged in Watchnam).
 
 3. Fine-tuning
 
 The generic model should not be expected to have a very good accuracy.
-Fine-tuning is almost guaranteed to be necessary for the reasonable performance.
-In order to support fine tuning, the system allows to utilize the hidden "dataset"
-service. That servce helps to create a manageable dataset of images where
-model makes mistakes and then use them to fine-tune. The service can be enabled
-in the config or by manually deleting "dataset.off" file under the folder
-<events_path>/<channel>/<object>/ for the desired channel object combination.
-The fine_tune.ipynb notebook in this folder shows an example of fine-tuning the
-LLAMA 3.2 Vision Instruct with Unsloth and the Watchman "dataset" data, and then
-deploying the updated model to be served by vLLM.
+Fine-tuning is pretty much guaranteed to be necessary for any reasonable accuracy.
+In order to support the fine tuning, Watchman system provides the hidden "dataset"
+service. That servce helps to create a dataset of images where the model is likely
+to make mistakes. Then corrct them manualy (using Watchman UI) or using a larger
+model (still TBD), and fine-tune the local model. The service can be enabled
+in the config, on the "System Status" UI page or by manually by deleting the
+"<events_path>/<channel>/<object>/dataset.off" file for the desired channel object
+combination.
 
-The dataset images are stored in subfoders under the "dataset" path.
-The subfoder structure is:
+When the dataset service is enable the images and the inference info are collected
+under the "<data_path>/dataset/<channel>/<object>/" folder (the colection stops
+when the hard limit of 1000 images is reached). The Watchman UI can be used to move
+the working copy of the dataset folder to the queue for labeling (correcting the
+inference errors), and from there to the training data archive (a pickle file
+"<data_path>/dataset/train_data.pkl").
+
+The fine_tune.ipynb notebook in this folder shows an example how to use that file
+for fine-tuning the LLAMA 3.2 Vision Instruct with Unsloth, and then deploy the
+updated model to be served by vLLM.
+
+The process of collecting and labeling the data can also be performed manually,
+using the notebooks. Below, there are some details on how the dataset service
+works and how to use the notebooks provided here, in this folder.
+
+The dataset images are stored in subfoders under the "dataset" path. The subfoder
+structure is:
   <dataset_path>/<channel>/<object>/<1-...>/
 The service captures (under the numbered subfolders) all the images where model
 detects the object, as well as each image preceeding any sequence of such detection(s).
@@ -75,11 +90,9 @@ while still keeping the dataset size relatively small.
 After capturing, all the dataset images have to be classified manually (or with
 the help of a better model). The images are assumed to be true positives unless
 identified otherwise. This identification of negatives is done by placing the
-file "no" in the image folder. The folders can be also tagged w/ the file "skip"
-to be ignored. Again, all folders having no tag file are assumed to be true positives.
-
-The UI will be eventually extended to help with the work of tagging the "dataset"
-service images.
+file "no" in the image folder. The folders can also be labeled w/ the file "skip"
+to be ignored. Again, all folders containing no such files are assumed to be true
+positives.
 
 All the notebooks in this folder are for experimenting w/ infernce and fine tuning.
 Examine and/or experiment with them in the following oredr:

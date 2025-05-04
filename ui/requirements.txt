@@ -1,2 +1,2 @@
 streamlit==1.41.1
-
+streamlit-shortcuts==0.1.9

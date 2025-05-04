@@ -207,7 +207,7 @@ class ChannelOrchestrator:
     # transferred to the dataset folder only when followed by a positive,
     # or immediately following a positive.
     def dataset_capture(self, obj_dir, obj_id, e):
-        max_dataset_dirs = 1000
+        max_dataset_dirs = DTS_max_items
         obj_svc_file = f"{obj_dir}/{e[EVT_osvc_key]}.json"
         obj_svc_img_file = f"{obj_dir}/{e[EVT_osvc_key]}.jpg"
         captured_negative_file = f"{obj_dir}/{e[EVT_osvc_key]}_cap_negative.flag"
@@ -362,6 +362,7 @@ class ChannelOrchestrator:
             evt = {
                 EVT_osvc_key: s[CFG_osvc_name_key],
                 EVT_c_name_key: self.chan_name,
+                EVT_obj_desc_key: obj_desc,
                 EVT_in_time_key: 0, # populated after inference
                 EVT_msg_key: s[CFG_osvc_msgtpl_key], # putting template here for now
                 EVT_alrt_mute_time_key: 0 if not CFG_osvc_mtime_key in s.keys() else s[CFG_osvc_mtime_key]

@@ -1,5 +1,5 @@
 # This file contains global vars specifying files & directory names, JSON object structure,
-# e.t.c for shared between the components of the system. This file should be copied alongside
+# e.t.c for sharing between the components of the system. This file should be copied alongside
 # the app script when creating the docker container for each service.
 
 # Config UI values that are shared
@@ -46,7 +46,7 @@ CFG_osvc_pname_key = "pname"     # for debugging purposes (used w/ special "data
 IMG_poll_int_ms = 1000 # how often to the imager loop is called
 IMG_json_file_name = 'image.json' # name of the JSON file w/ image data under the channel folder
 IMG_off_file_name = 'image.off'   # name of the file that stops imager from polling from channel URL
-IMG_file_name = 'image.jpg'  # where to store raw image for debugging
+IMG_file_name = 'image.jpg'  # where to store raw image for debugging and the data collection
 IMG_dir = 'images'     # locaton of the imager folder
 IMG_chan_key = 'cid'   # Channel ID key
 IMG_name_key = 'name'  # Verbal description of the channel
@@ -62,7 +62,7 @@ EVT_obj_file_name = 'obj.json' # obect description file name
 # Event DB keys shared between all services
 EVT_obj_id_key = "o_id"     # object ID (from CFG_obj_id_key, in events/chan/obj/obj.json)
 EVT_obj_names_key = "names" # names of the object of interest from config (object name coming from Alexa should match one of them to get the answer)
-EVT_obj_desc_key = "o_desc" # object description string from config (in events/chan/obj/obj.json)
+EVT_obj_desc_key = "o_desc" # object description string from config (in events/chan/obj/obj.json and in dataset.json)
 EVT_obj_cid_key = "o_cid"   # object's channel ID from the config (in events/chan/obj/obj.json)
 EVT_obj_cname_key = "o_cname" # object's channel name from the config (in events/chan/obj/obj.json)
 EVT_osvc_list_key = "osvc_list"  # list of services (names) enabled (not filtered out for the obj on the channel, in events/chan/obj/obj.json)
@@ -71,6 +71,12 @@ EVT_c_name_key = "c_name"   # event channel name (for use in speech)
 EVT_in_time_key = "in_time" # epoch time when the event was reported
 EVT_msg_key = "msg"         # message to play for the event
 EVT_alrt_mute_time_key = "mtime" # for alerts only, time in seconds mute after reporting
+
+# Other
+DTS_max_items = 1000  # max number of items in a single dataset folder
+DTS_max_lbl_queue = 9 # max number of datasets in the queue for tagging
+DTS_version = 2       # version number for the dataset data (for versioning in case columns added/removed)
+DTS_train_data_file = "train_data.pkl" # Name of the pickle file where the train data is accumulated
 
 # Individual object of interest config schema (it's getting complex, so better use schema for validation)
 CFG_obj_schema = {
