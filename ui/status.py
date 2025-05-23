@@ -62,7 +62,7 @@ def system_status_sm(key):
                 initial_state = False
             else:
                 initial_state = True
-            state = st.toggle(label=service, value=initial_state, key=f'{object}_{index}')
+            state = st.toggle(label=service, value=initial_state, key=f'{selected_channel}_{object}_{service}')
             # Update the service status based on toggle state
             if state and os.path.exists(off_file):
                 try: os.remove(off_file)
