@@ -204,8 +204,9 @@ def add_to_queue(new_item, queue_list):
         except:
             print(f"Skipping invalid dataset queue list item {cur_item}, expected channel/object.N.M.TIMESTAMP")
             continue
-        new_dir = f"{base_dir}.{new_index}.{last_labeled}.{timestamp}"
-        os.rename(cur_dir, new_dir)
+        if old_index <= ii:
+            new_dir = f"{base_dir}.{new_index}.{last_labeled}.{timestamp}"
+            os.rename(cur_dir, new_dir)
 
 # Dataset management state machine section
 def dataset_management_sm(key):
