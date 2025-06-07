@@ -11,6 +11,7 @@ from streamlit_shortcuts import button
 import pandas as pd
 import base64
 from pathlib import Path
+import time
 
 # Pull in shared variables (file names, JSON object names, ...)
 sys.path.append(os.path.dirname(__file__))
@@ -144,10 +145,10 @@ def image_browsing(subpath, start_index=0):
     skip_file_path = f"{dataset_dir}/{image_index}/skip"
     data_json_path = f"{dataset_dir}/{image_index}/data.json"
 
-    if os.path.exists(no_file_path):
-        match_result = "No"
-    elif os.path.exists(skip_file_path):
+    if os.path.exists(skip_file_path):
         match_result = "Skip"
+    elif os.path.exists(no_file_path):
+        match_result = "No"
     else:
         match_result = "Yes"
     col1, col2 = st.columns(2)
@@ -156,7 +157,7 @@ def image_browsing(subpath, start_index=0):
 
     # Read data.json and display msg if match_result is "Yes"
     match_msg = ""
-    if match_result == "Yes":
+    if match_result == "Yes" or match_result == "Skip":
         try: 
             with open(data_json_path, "r") as file:
                 data = json.load(file)
@@ -208,6 +209,22 @@ def add_to_queue(new_item, queue_list):
             new_dir = f"{base_dir}.{new_index}.{last_labeled}.{timestamp}"
             os.rename(cur_dir, new_dir)
 
+def count_images(dataset_path):
+    num_images = 0
+    num_skip = 0
+    num_no = 0
+    for folder in os.listdir(dataset_path):
+        if not folder.isdigit(): continue
+        num_images += 1
+        if os.path.exists(f"{dataset_path}/{folder}/skip"):
+            num_skip += 1
+            continue
+        if os.path.exists(f"{dataset_path}/{folder}/no"):
+            num_no += 1
+            continue
+    num_yes = num_images - num_no - num_skip
+    return num_images, num_skip, num_no, num_yes
+
 # Dataset management state machine section
 def dataset_management_sm(key):
     hide_shortcut_iframe()
@@ -231,8 +248,8 @@ def dataset_management_sm(key):
     # Show user the number of images in the dataset, number of dataset queued for labeling and
     # a button allowing to add the currently selected dataset to the queue.
     dataset_path = f"{DATASET_DIR}/{selected_combination}"
-    num_images = len([folder for folder in os.listdir(dataset_path) if folder.isdigit()])
-
+    num_images, num_skip, num_no, num_yes = count_images(dataset_path)
+    
     queue_list = []
     queue_nums = 0
     for ii in range (1,MAX_QUEUE + 1):
@@ -242,7 +259,7 @@ def dataset_management_sm(key):
             queue_nums += 1
         queue_list.extend(matching_subpaths)
 
-    st.text(f"Number of images in the working dataset: {num_images}\n" +
+    st.text(f"Number of images in the working dataset: {num_images} (skip:{num_skip} no:{num_no} yes:{num_yes})\n" +
             f"Datasets in labeling queue: {queue_nums} (out of {MAX_QUEUE})")
 
     # Add a button for adding the selected combination to the queue
@@ -285,7 +302,7 @@ def get_object_description(objid):
     return obj_desc
 
 # Function for adding a row to the training dataset dataframe
-def add_train_data_row(dataframe, dir, timestamp, c_desc, o_desc, res):
+def add_train_data_row(dataframe, dir, timestamp, c_desc, o_desc, location, res):
     try:
         image_pname = f"{dir}/{IMG_file_name}"
         img_data = base64.b64encode(Path(image_pname).read_bytes()).decode()
@@ -327,7 +344,7 @@ def move_to_train_data_file(selected_dataset):
         return f"Unable to find the description of the object \"{obj}\" in the system configuration!"
 
     # Load the picke dataframe or create a new one
-    columns = ["ver", "tstamp", "img", "c_desc", "o_desc", "res"]
+    columns = ["ver", "tstamp", "img", "c_desc", "o_desc", "location", "res"]
     if os.path.exists(pcl_train_data_path):
         try:
             df = pd.read_pickle(pcl_train_data_path)
@@ -341,7 +358,7 @@ def move_to_train_data_file(selected_dataset):
         except Exception as e:
             return f"Error loading data: {str(e)}"
     else:
-        df = pd.DataFrame(columns=["ver", "tstamp", "img", "c_desc", "o_desc", "res"])
+        df = pd.DataFrame(columns=columns)
 
     # Check if timestamp already exists in dataframe
     try: allow_override = st.session_state['dataset_allow_overide']
@@ -359,9 +376,14 @@ def move_to_train_data_file(selected_dataset):
         if os.path.exists(f"{s}/skip"):
             continue
         if os.path.exists(f"{s}/no"):
-            add_train_data_row(df, f"{s}", timestamp, c_desc, o_desc, "No")
+            add_train_data_row(df, f"{s}", timestamp, c_desc, o_desc, None, "No")
         else:
-            add_train_data_row(df, f"{s}", timestamp, c_desc, o_desc, "Yes")
+            location = None
+            try:
+                with open(f"{s}/location", "r") as location_file:
+                    location = location_file.read()
+            except: pass # no location description
+            add_train_data_row(df, f"{s}", timestamp, c_desc, o_desc, location, "Yes")
 
     try:
         if os.path.exists(pcl_train_data_path):
@@ -371,6 +393,69 @@ def move_to_train_data_file(selected_dataset):
         return f"Error saving {pcl_train_data_path}: {str(e)}"
     
     return None
+
+# Automatically label an image, image_path - image folder path
+# skip_if_correct - mark the image to be skipped if the label is already correct
+# do_location - create file "location" with the object location descripton for the positive samples
+def label_image(image_path, skip_if_correct, do_location):
+    print(f"Labeling image: {image_path}...", end="")
+    image_pname = f"{image_path}/image.jpg"
+    data_json_path = f"{image_path}/data.json"
+    location_file_path = f"{image_path}/location"
+    skip_file_path = f"{image_path}/skip"
+    no_file_path = f"{image_path}/no"
+    if os.path.exists(skip_file_path):
+        print(f"ignoring, already marked as skip")
+        return
+    try: 
+        with open(data_json_path, "r") as file:
+            data = json.load(file)
+            c_name = data["c_name"]
+            o_desc = data["o_desc"]
+    except:
+        print(f"ignoring, invalid image data.json (no c_name or o_desk value)")
+        return
+    img_data = base64.b64encode(Path(image_pname).read_bytes()).decode()
+    res, msg = MODEL_INTERFACE.locate(img_data, o_desc, c_name, do_location)
+    # if msg is None then something did work in the model interface, giving up
+    if msg is None:
+        print(f"ignoring, no response from the model")
+        return
+    # record the location if requested and the model response msg is not empty
+    if do_location and len(msg) > 0:
+        try:
+            with open(location_file_path, "w") as location_file:
+                location_file.write(msg)
+        except: pass
+    # positive, but the current result is negative
+    if res and os.path.exists(no_file_path):
+        try: os.unlink(no_file_path); print("corrected to positive")
+        except: print("error correcting to positive")
+    # negative, but the current result is positive
+    elif not res and not os.path.exists(no_file_path):
+        try: open(no_file_path, 'a').close(); print("corrected to negative")
+        except: print("error correcting to negative")
+    # current and auto-labeling results match
+    elif skip_if_correct:
+        try: open(skip_file_path, 'a').close(); print("correct, marked to skip")
+        except: print("correct, error marking to skip")
+    else:
+        print("correct")
+
+# Create a UI section for auto-labeling with a progress bar
+# dataset_dir - directory with image subdirs (the names are integers)
+# num_images - number of images (subdirs) in the dataset
+def auto_labeling(dataset_dir, num_images):
+    skip_if_correct = st.session_state['auto_label_skip_if_correct']
+    do_location = st.session_state['auto_label_do_location']
+    with st.spinner("Labeling images..."):
+        progress_bar = st.progress(0)
+        for i, folder in enumerate(os.listdir(dataset_dir)):
+            if not folder.isdigit(): continue
+            image_dir = os.path.join(dataset_dir, folder)
+            label_image(image_dir, skip_if_correct, do_location)
+            progress_bar.progress((i + 1) / num_images)
+    st.success("All images have been labeled!")
 
 # Dataset labeling state machine section
 def dataset_labeling_sm(key):
@@ -431,8 +516,17 @@ def dataset_labeling_sm(key):
         col21.toggle(label="Allow override", value=False, key='dataset_allow_overide')
         col22.toggle(label="Allow incomplete labeling", value=False, key='dataset_allow_no_label')
 
-        num_images = len([folder for folder in os.listdir(dataset_dir) if folder.isdigit()])
-        st.text(f"Number of images in the selected dataset: {num_images}")
+        num_images, num_skip, num_no, num_yes = count_images(dataset_dir)
+        st.text(f"Number of images in the selected dataset: {num_images} (skip:{num_skip} no:{num_no} yes:{num_yes})")
+
+        # Add the "Label Automatically" user elements
+        col31, col32, col33 = st.columns(3)
+        auto_label_button = col31.button("Label Automatically", key='auto_label_button')
+        col32.toggle("Skip if correct", value=True, key='auto_label_skip_if_correct')
+        col33.toggle("Describe location", value=True, key='auto_label_do_location')
+   
+        if auto_label_button:
+            auto_labeling(dataset_dir, num_images)
 
         try:
             chan_obj = selected_dataset.split('.')[0]

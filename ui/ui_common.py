@@ -5,8 +5,10 @@ import json
 # Pull in shared variables (file names, JSON object names, ...)
 sys.path.append(os.path.dirname(__file__))
 sys.path.append(os.path.abspath("."))
+sys.path.append(os.path.abspath("./orchestrator"))
 
 from shared_settings import *
+from model_interfaces import *
 
 # Figure the path to the data folders depending on where we run
 DATA_DIR = ''
@@ -19,6 +21,9 @@ DATA_DIR = os.getenv('DATA_DIR', DATA_DIR)
 IMGDIR = f"{DATA_DIR}/{IMG_dir}"
 EVTDIR = f"{DATA_DIR}/{EVT_dir}"
 CFGDIR = f"{DATA_DIR}/{CFG_dir}"
+
+# remove the DTS_* from here after restart
+MODEL_INTERFACE = MODELS[DTS_label_model_if](model_to_use=DTS_label_model, api_key=os.getenv('OPENAI_API_KEY'))
 
 # Path to the config files
 imgsrc_cfg_json_path = f"{CFGDIR}/{CFG_imager}"

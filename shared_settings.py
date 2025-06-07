@@ -77,6 +77,8 @@ DTS_max_items = 1000  # max number of items in a single dataset folder
 DTS_max_lbl_queue = 9 # max number of datasets in the queue for tagging
 DTS_version = 2       # version number for the dataset data (for versioning in case columns added/removed)
 DTS_train_data_file = "train_data.pkl" # Name of the pickle file where the train data is accumulated
+DTS_label_model_if = "openai-generic"  # Model interface to use for automatic labeling (e.g. ollama-generic)
+DTS_label_model = "o4-mini"            # Model name for the automatic labeling (e.g. gpt-4o-mini)
 
 # Individual object of interest config schema (it's getting complex, so better use schema for validation)
 CFG_obj_schema = {
