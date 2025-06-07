@@ -98,10 +98,10 @@ class ChannelDownloadRunner:
         print(f"Received SIGTERM, exiting downloader with pid: {os.getpid()}")
         exit(0)
 
-    # This loop runs in the child process only (no return)
-    def channel_loop(self, iteration):
+    # This loop runs in the child process only
+    def channel_loop(self, iteration, prev_res = True):
         if iteration % self.upd_int != 0:
-            return
+            return prev_res
 
         ch = self.ch
         chan_id = self.chan_id
@@ -113,7 +113,7 @@ class ChannelDownloadRunner:
         # Check if the channel is disabled by the responder due to no services being enabled on it
         off_file_pathname = f"{IMGDIR}/{chan_id}/{IMG_off_file_name}"
         if os.path.exists(off_file_pathname):
-            return
+            return True
 
         # Download raw
         img_file_pathname = f"{IMGDIR}/{chan_id}/{img_file}"
@@ -124,7 +124,7 @@ class ChannelDownloadRunner:
                     shutil.copyfile(src_file, img_file_pathname)
                 else:
                     print(f"{sys._getframe().f_code.co_name}: error, {src_file} is not a file")
-                    return
+                    return False
             else:
                 response = requests.get(url, verify=False, stream=True, timeout=10)
                 if response.status_code == 200:
@@ -133,16 +133,16 @@ class ChannelDownloadRunner:
                             f.write(chunk)
                 else:
                     print(f"{sys._getframe().f_code.co_name}: error {response.status_code} fetching {ch[CFG_chan_name_key]} channel image")
-                    return
+                    return False
         except:
             print(f"{sys._getframe().f_code.co_name}: error loading image from {url}")
-            return
+            return False
 
         # Make sure we downloaded an image
         file_type = imghdr.what(img_file_pathname)
         if not file_type in ['gif', 'jpeg', 'png', 'webp']: # for now just pass through what LLAMA 3.2 Vision supports
             print(f"{sys._getframe().f_code.co_name}: only 'gif', 'jpeg', 'png' and 'webp' are allowed, got '{file_type}' from {url}")
-            return
+            return False
 
         # Construct image JSON file
         json_file_pname = f"{IMGDIR}/{ch[CFG_chan_id_key]}/{json_file}"
@@ -154,7 +154,11 @@ class ChannelDownloadRunner:
         js[IMG_time_key] = time.time() # will use epoch time as we will likely report differential
         js[IMG_iter_key] = iteration # might be useful for tracking changes
         # write file and replace by atomic renaming (requires Unix)
-        json_atomic_write(js, json_tmp_file_pname, json_file_pname)
+        res = json_atomic_write(js, json_tmp_file_pname, json_file_pname)
+
+        if res and not prev_res:
+            print(f"{ch[CFG_chan_name_key]}: recovered from error")
+        return res
 
     def run(self, iteration):
         global MANAGER
@@ -168,9 +172,10 @@ class ChannelDownloadRunner:
         MANAGER = False # record that we are the runner (so we do not try to cleanup when terminating)
         signal.signal(signal.SIGTERM, ChannelDownloadRunner.signal_handler)
         print(f"Started downloader for channel: {self.chan_id}, pid: {os.getpid()}")
+        prev_res = True # assume success when starting
         while True:
             start_time_ms = int(time.time() * 1000)
-            self.channel_loop(iteration)
+            prev_res = self.channel_loop(iteration, prev_res)
             iteration += 1
             end_time_ms = int(time.time() * 1000)
             if start_time_ms + IMG_poll_int_ms > end_time_ms:
