@@ -312,6 +312,7 @@ def add_train_data_row(dataframe, dir, timestamp, c_desc, o_desc, location, res)
             "img": img_data,
             "c_desc": c_desc,
             "o_desc": o_desc,
+            "location": location,
             "res": res,
         }
     except Exception as e:
@@ -413,7 +414,9 @@ def label_image(image_path, skip_if_correct, do_location):
             c_name = data["c_name"]
             o_desc = data["o_desc"]
     except:
-        print(f"ignoring, invalid image data.json (no c_name or o_desk value)")
+        # the old style data.json did not have o_desc, will not support those datasets
+        try: open(skip_file_path, 'a').close(); print(f"invalid image data.json, skipping")
+        except: print("invalid image data.json, error marking to skip")
         return
     img_data = base64.b64encode(Path(image_pname).read_bytes()).decode()
     res, msg = MODEL_INTERFACE.locate(img_data, o_desc, c_name, do_location)
