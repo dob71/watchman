@@ -320,7 +320,7 @@ class ChannelOrchestrator:
         obj_names = o[CFG_obj_names_key]
         obj_desc = o[CFG_obj_desc_key]
         obj_svcs = o[CFG_obj_svcs_key]
-        obj_osvc_list = [ s[CFG_osvc_name_key] for s in obj_svcs if self.chan_id not in o.get(CFG_osvc_skip_chan_key, []) ]
+        obj_osvc_list = [ s[CFG_osvc_name_key] for s in obj_svcs if self.chan_id not in s.get(CFG_osvc_skip_chan_key, []) ]
         # Prep event's object of interest info json
         obj_js = {
             EVT_obj_id_key: obj_id,
@@ -374,16 +374,14 @@ class ChannelOrchestrator:
     def is_object_watched(self, o):
         obj_id = o[CFG_obj_id_key]
         obj_svcs = o[CFG_obj_svcs_key]
-        # Is this channel in the skip list for th eobject?
-        if self.chan in o.get(CFG_osvc_skip_chan_key, []):
-            return False
         # Object events directory
         obj_dir =  f"{EVTDIR}/{self.chan}/{obj_id}"
         # Check for any service being enabled.
         enabled_services = False
         for s in obj_svcs:
             obj_svc_off_file = f"{obj_dir}/{s[CFG_osvc_name_key]}.off"
-            if not os.path.exists(obj_svc_off_file):
+            # Is this channel in the skip list for the object service or the service is off?
+            if not self.chan in s.get(CFG_osvc_skip_chan_key, []) and not os.path.exists(obj_svc_off_file):
                 enabled_services = True
                 break
         return enabled_services
