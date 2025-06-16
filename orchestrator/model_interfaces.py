@@ -92,7 +92,7 @@ class OpenAiGenericInterface:
                 )
                 if rsp:
                     #print(f"Location:\n-----------\n{rsp}\n------------\n")
-                    msg = rsp.choices[0].message.content.lower()
+                    msg = rsp.choices[0].message.content.lower().strip('\r\n\t ')
                 break  # Success, exit retry loop
             except openai.OpenAIError as e:
                 if e.code == 'rate_limit_exceeded':
@@ -201,7 +201,7 @@ class VLLMLlama32Interface:
                 stop='.',
             )
             if rsp:
-                msg = rsp.choices[0].message.content.lower()
+                msg = rsp.choices[0].message.content.lower().strip('\r\n\t ')
         except:
             pass
         return ret, msg
@@ -278,7 +278,7 @@ class OllamaLlama32Interface:
         )
         if rsp.done:
             ret = True
-            msg = rsp.response.lower()
+            msg = rsp.response.lower().strip('\r\n\t ')
         return ret, msg
 
 class OllamaSimpleInterface(OllamaLlama32Interface):
