@@ -11,10 +11,15 @@ CFG_version_key = "version"      # config update counter (for detecting changes)
 CFG_channels_key = 'channels'    # name of the channel list object in config JSON
 # imager config JASON values for each entry in the channel list
 CFG_chan_id_key = 'channel'      # channel ID (used to name folder w/ the channel image data)
-CFG_chan_url_key = "url"         # URL to pull the image from
+CFG_chan_url_key = "url"         # URL to pull the image from (supports http/s, rtsp and file)
 CFG_chan_name_key = "name"       # channel name (for use in speech)
 CFG_chan_upd_int_key = "upd_int" # key for the image update interval in channels
-CFG_DEF_upd_int = 2              # default update interval for channels (in number of IMG_poll_int_ms intervals)
+CFG_chan_img_h_key = "height"    # channel image height in pixels
+CFG_chan_img_w_key = "width"     # channel image width in pixels
+CFG_chan_img_q_key = "quality"   # channel image quality (in %, images are saved as JPEG)
+CFG_chan_rtsp_bf_retries_key = "rtsp_bf_retries" # how many retries if detected RTSP delivering a bad frame
+CFG_chan_rtsp_bf_thesh_key =   "rtsp_bf_thresh"  # RTSP bad frame sensetivity threshold (default 0.2, higer - more frames are considered bad)
+CFG_DEF_upd_int = 5              # default update interval for channels (in number of IMG_poll_int_ms intervals)
 # objects config JASON
 CFG_obj_version_key = "version"  # config update counter (for detecting changes)
 CFG_obj_model_key = "model"      # ML model interface ID string (see in the code, default "ollama-simple")

@@ -9,8 +9,13 @@ import time
 import base64
 import signal
 import imghdr
+import cv2
+import numpy as np
 from pathlib import Path
 from dotenv import load_dotenv
+
+# Reduce FFMPG log level to "fatal" only (otherwise it prints errors when stream rewinds)
+os.environ['OPENCV_FFMPEG_LOGLEVEL'] = '8'
 
 # Pull in shared variables (file names, JSON object names, ...)
 sys.path.append(os.path.dirname(__file__))
@@ -69,9 +74,21 @@ class ChannelDownloadRunner:
         self.ch = ch
         self.chan_id = ch[CFG_chan_id_key]
         self.upd_int = ch[CFG_chan_upd_int_key]
-        self.pid = -1        
+        self.img_h = ch[CFG_chan_img_h_key]
+        self.img_w = ch[CFG_chan_img_w_key]
+        self.img_q = ch[CFG_chan_img_q_key]
+        self.rtsp_bf_retries = ch[CFG_chan_rtsp_bf_retries_key]
+        self.rtsp_bf_thresh = ch[CFG_chan_rtsp_bf_thesh_key]
+        self.pid = -1
+        self.rtsp_cap = None
+        self.iteration_file = f"{IMGDIR}/{self.chan_id}/iteration.txt"
+        self.last_reported_iteration = -1
+        self.idle_counter = 0
 
     def __del__(self):
+        if self.rtsp_cap != None:
+            self.rtsp_cap.release()
+            self.rtsp_cap = None
         if MANAGER and self.pid > 0 and is_pid_running(self.pid):
             os.kill(self.pid, signal.SIGTERM)
             for i in range(10):
@@ -98,6 +115,78 @@ class ChannelDownloadRunner:
         print(f"Received SIGTERM, exiting downloader with pid: {os.getpid()}")
         exit(0)
 
+    # process and post the image for the consumers
+    def post_image(self, img, img_file_pathname):
+        img_file_pathname_tmp = f"{img_file_pathname}.tmp.jpg"
+        resized_img = cv2.resize(img, (self.img_w, self.img_h))
+        ret = cv2.imwrite(img_file_pathname_tmp, resized_img, [cv2.IMWRITE_JPEG_QUALITY, self.img_q])
+        if not ret:
+            raise Exception(f"error, unable to write image to {img_file_pathname_tmp}")
+        os.rename(img_file_pathname_tmp, img_file_pathname)
+
+    # handle a file URL
+    def get_file(self, url, img_file_pathname):
+        src_file = url[len("file://"):]
+        if not os.path.isfile(src_file):
+            raise Exception(f"error, {src_file} is not a file")
+        img = cv2.imread(src_file)
+        if img is None:
+            raise Exception(f"error, cv2.imread() failed to read {src_file}")
+        self.post_image(img, img_file_pathname)
+
+    # handle an HTTP or HTTPs URL
+    def get_http(self, url, img_file_pathname):
+        response = requests.get(url, verify=False, stream=True, timeout=10)
+        response.raise_for_status() # Check for HTTP errors
+        image_bytes = np.asarray(bytearray(response.content), dtype="uint8")
+        img = cv2.imdecode(image_bytes, cv2.IMREAD_COLOR)
+        if img is None:
+            raise Exception(f"error, cv2.imdecode() failed for {url}")
+        self.post_image(img, img_file_pathname)
+
+    # Detect corrupt RTSP frames by checking for repeating rows of pixels at the bottom
+    def is_frame_corrupt(self, img):
+        num_pixels = img.shape[1]
+        sum_diff = 0.0
+        step = int(img.shape[0] / 100)
+        step = step if step > 0 and step < 20 else 10
+        # copare 5 rows at the bottom 10% of the image to each other
+        last_row = img[-1, :]
+        for i in range(1 + step, step * 6, step):
+            current_row = img[-i, :]
+            diff = np.sum(np.abs(last_row - current_row))
+            sum_diff += diff
+            last_row = current_row
+        avg_diff_per_pixel = sum_diff / (num_pixels * 4)
+        perc_diff = avg_diff_per_pixel / (3 * 255)
+        # the corruption caused by missing some of the stream data is, typically, stretching
+        # of some pattern down to the bottom of the image, that usually results in more
+        # similaratities (~10% difference) between rows of pixels than the normal image
+        # (50% diffrence).
+        return  perc_diff < self.rtsp_bf_thresh
+
+    # handle an RTSP URL
+    def get_rtsp(self, url, img_file_pathname):
+        if self.rtsp_cap == None:
+            self.rtsp_cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
+            #self.rtsp_cap(cv2.CAP_PROP_BUFFERSIZE, 3) # might work for some backends
+        if not self.rtsp_cap.isOpened():
+            self.rtsp_cap.release()
+            self.rtsp_cap = None
+            raise Exception(f"error, RTSP cannot open {url}")
+        fps = self.rtsp_cap.get(cv2.CAP_PROP_FPS)
+        fps = fps if fps >= 5 and fps <= 60 else 30
+        self.rtsp_cap.set(cv2.CAP_PROP_POS_AVI_RATIO, 1.0) # rewind to the end
+        for ii in range(self.rtsp_bf_retries):
+            time.sleep(1.0 / fps)
+            ret, img = self.rtsp_cap.read()
+            if not ret or img is None:
+                raise Exception(f"error, RSTP cannot read from {url}")
+            if not self.is_frame_corrupt(img):
+                break
+            print(f"retrying frame attempt {ii} fps:{fps}")
+        self.post_image(img, img_file_pathname)
+
     # This loop runs in the child process only
     def channel_loop(self, iteration, prev_res = True):
         if iteration % self.upd_int != 0:
@@ -115,27 +204,27 @@ class ChannelDownloadRunner:
         if os.path.exists(off_file_pathname):
             return True
 
+        # Write the current iteration to a file to watch for hangs
+        try:
+            with open(f"{self.iteration_file}.tmp", "w") as f:
+                f.write(str(iteration))
+            os.rename(f"{self.iteration_file}.tmp", self.iteration_file)
+        except: pass
+
         # Download raw
         img_file_pathname = f"{IMGDIR}/{chan_id}/{img_file}"
         try:
             if url.lower().startswith("file://"):
-                src_file = url[len("file://"):]
-                if os.path.isfile(src_file):
-                    shutil.copyfile(src_file, img_file_pathname)
-                else:
-                    print(f"{sys._getframe().f_code.co_name}: error, {src_file} is not a file")
-                    return False
+                self.get_file(url, img_file_pathname)
+            elif url.lower().startswith("http://") or url.lower().startswith("https://"):
+                self.get_http(url, img_file_pathname)
+            elif url.lower().startswith("rtsp://"):
+                self.get_rtsp(url, img_file_pathname)
             else:
-                response = requests.get(url, verify=False, stream=True, timeout=10)
-                if response.status_code == 200:
-                    with open(img_file_pathname, "wb") as f:
-                        for chunk in response.iter_content(1024):
-                            f.write(chunk)
-                else:
-                    print(f"{sys._getframe().f_code.co_name}: error {response.status_code} fetching {ch[CFG_chan_name_key]} channel image")
-                    return False
-        except:
-            print(f"{sys._getframe().f_code.co_name}: error loading image from {url}")
+                raise Exception(f"error, unable to handle {url}")
+
+        except Exception as e:
+            print(f"{sys._getframe().f_code.co_name}: {e}")
             return False
 
         # Make sure we downloaded an image
@@ -205,6 +294,14 @@ def read_config():
         return None
     if not CFG_channels_key in new_cfg.keys():
        new_cfg[CFG_channels_key] = []
+    # Set some defaults if the config is missing the relevant optional keys
+    for ch in new_cfg[CFG_channels_key]:
+        ch[CFG_chan_img_h_key] = ch.get(CFG_chan_img_h_key, 720)
+        ch[CFG_chan_img_w_key] = ch.get(CFG_chan_img_w_key, 1280)
+        ch[CFG_chan_img_q_key] = ch.get(CFG_chan_img_q_key, 50)
+        ch[CFG_chan_rtsp_bf_retries_key] = ch.get(CFG_chan_rtsp_bf_retries_key, 5)
+        ch[CFG_chan_rtsp_bf_thesh_key] = ch.get(CFG_chan_rtsp_bf_thesh_key, 0.20)
+
     return new_cfg
 
 # Read and apply config if new, return False if no changes
@@ -277,6 +374,20 @@ def main_loop(iteration):
         c_runner = CRUN[chan_id]
         if not c_runner.is_running():
             c_runner.run(iteration + idx) # offset iteration by idx to help spread downloads
+        else:
+            try:
+                with open(c_runner.iteration_file, "r") as f:
+                    iteration = int(f.read().strip())
+            except: iteration = 0
+            if c_runner.last_reported_iteration == iteration:
+                c_runner.idle_counter += 1
+                if c_runner.idle_counter > 30: # give it 30sec max
+                    print(f"{sys._getframe().f_code.co_name}: imager thread for {chan_id} hung, terminating...")
+                    del c_runner
+                    CRUN[chan_id] = ChannelDownloadRunner(ch)
+            else:
+                c_runner.idle_counter = 0
+                c_runner.last_reported_iteration = iteration
     return
 
 # Run the main loop. It's responsible for watching sources config file, loading it,
