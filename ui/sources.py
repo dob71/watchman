@@ -105,15 +105,19 @@ def configure_sources_sm(key):
             st.subheader(f"Channel {i}")
             st.session_state.channel_input[i] = st.text_input("Channel ID", 
                                                               key = "channel" + str(i), 
-                                                              value=st.session_state.channel_input[i])
+                                                              value=st.session_state.channel_input[i],
+                                                              help="Unique identifier used to name the channel's folder (lowercase, no spaces)")
             st.session_state.name_input[i] = st.text_input("Channel name",
                                                             key = "name" + str(i),
-                                                            value=st.session_state.name_input[i])
+                                                            value=st.session_state.name_input[i],
+                                                            help="Human-readable name for voice responses and UI display")
             st.session_state.url_input[i] = st.text_input("Channel image load URL",
                                                             key = "url" + str(i),
-                                                            value=st.session_state.url_input[i])
+                                                            value=st.session_state.url_input[i],
+                                                            help="Source URL for camera feed (supports http/s, rtsp, and local files)")
             st.session_state.slider_input[i] = st.slider("Image update interval", 0, 10, st.session_state.slider_input[i],
-                                                            key='upd_int' + str(i))
+                                                            key='upd_int' + str(i),
+                                                            help="How often to check for new images (in multiples of 1 second)")
             # Create a button to handle removal
             if st.form_submit_button(f"Remove Channel {i}"):
                 handle_channel_removal(i)

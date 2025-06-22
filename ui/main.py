@@ -10,6 +10,7 @@ from ui_common import *
 from status import system_status_sm
 from sources import configure_sources_sm
 from objects import configure_objects_sm
+from models_cfg import configure_models_sm
 from dataset import dataset_labeling_sm, dataset_management_sm
 
 # Main application state machine
@@ -34,6 +35,9 @@ if __name__ == "__main__":
         def objects_callback():
             st.session_state.app_state = "configure_objects"
 
+        def models_callback():
+            st.session_state.app_state = "configure_models"
+
         def dataset_lbl_callback():
             st.session_state.app_state = "dataset_image_labeling"
 
@@ -45,6 +49,7 @@ if __name__ == "__main__":
             col2.markdown("### **Configuration**")
             col2.form_submit_button(label='Configure Input Channels', on_click=sources_callback)
             col2.form_submit_button(label='Configure Objects of interest', on_click=objects_callback)
+            col2.form_submit_button(label='Configure LLMs', on_click=models_callback)
             col1.markdown("### **System Management**")
             col1.form_submit_button(label='System Status', on_click=status_callback)
             col1.form_submit_button(label='Data Collection', on_click=dataset_mgmt_callback)
@@ -58,6 +63,9 @@ if __name__ == "__main__":
 
     elif st.session_state.app_state == "configure_objects":
         configure_objects_sm('streaming_configure_objects_form')
+    
+    elif st.session_state.app_state == "configure_models":
+        configure_models_sm('configure_models_form')
 
     elif st.session_state.app_state == "dataset_management":
         dataset_management_sm('dataset_management_form')
