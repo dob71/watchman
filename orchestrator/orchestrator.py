@@ -375,7 +375,7 @@ class ChannelOrchestrator:
         obj_id = o[CFG_obj_id_key]
         obj_svcs = o[CFG_obj_svcs_key]
         # Object events directory
-        obj_dir =  f"{EVTDIR}/{self.chan}/{obj_id}"
+        obj_dir = f"{EVTDIR}/{self.chan}/{obj_id}"
         # Check for any service being enabled.
         enabled_services = False
         for s in obj_svcs:
