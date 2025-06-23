@@ -22,12 +22,13 @@ IMGDIR = f"{DATA_DIR}/{IMG_dir}"
 EVTDIR = f"{DATA_DIR}/{EVT_dir}"
 CFGDIR = f"{DATA_DIR}/{CFG_dir}"
 
-# remove the DTS_* from here after restart
-MODEL_INTERFACE = MODELS[DTS_label_model_if](model_to_use=DTS_label_model, api_key=os.getenv('OPENAI_API_KEY'))
+# Model configuration
+CFG_model = 'model.json'         # tmp, remove later
 
 # Path to the config files
 imgsrc_cfg_json_path = f"{CFGDIR}/{CFG_imager}"
 objects_cfg_json_path = f"{CFGDIR}/{CFG_objects}"
+model_cfg_json_path = f"{CFGDIR}/{CFG_model}"
 
 # Training data pickle file location
 pcl_train_data_path = f"{DATA_DIR}/{CFG_dset_svc_name}/{DTS_train_data_file}"

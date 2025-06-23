@@ -6,10 +6,11 @@
 CFG_dir = 'sysconfig'            # config files folder location
 CFG_imager = 'sources.json'      # video channels config file
 CFG_objects = 'objects.json'     # objects of interest config file
-# imager config JASON values
+CFG_model = 'model.json'         # model configuration file
+# imager config JSON values
 CFG_version_key = "version"      # config update counter (for detecting changes)
 CFG_channels_key = 'channels'    # name of the channel list object in config JSON
-# imager config JASON values for each entry in the channel list
+# imager config JSON values for each entry in the channel list
 CFG_chan_id_key = 'channel'      # channel ID (used to name folder w/ the channel image data)
 CFG_chan_url_key = "url"         # URL to pull the image from (supports http/s, rtsp and file)
 CFG_chan_name_key = "name"       # channel name (for use in speech)
@@ -20,14 +21,20 @@ CFG_chan_img_q_key = "quality"   # channel image quality (in %, images are saved
 CFG_chan_rtsp_bf_retries_key = "rtsp_bf_retries" # how many retries if detected RTSP delivering a bad frame
 CFG_chan_rtsp_bf_thesh_key =   "rtsp_bf_thresh"  # RTSP bad frame sensetivity threshold (default 0.2, higer - more frames are considered bad)
 CFG_DEF_upd_int = 5              # default update interval for channels (in number of IMG_poll_int_ms intervals)
-# objects config JASON
-CFG_obj_version_key = "version"  # config update counter (for detecting changes)
-CFG_obj_model_key = "model"      # ML model interface ID string (see in the code, default "ollama-simple")
+# Models' config
+CFG_model_version_key = "version_mod" # config update counter (for detecting changes in models_cfg.json, must differ from the CFG_obj_version_key)
+CFG_obj_model_key = "model"           # ML model interface ID string (see in the code, default "ollama-simple")
 CFG_obj_model_name_key = "model_name" # model name to pass to the model interface (optional, see in the code, default varies)
 CFG_obj_model_url_key = "model_url"   # URL to pass to the model interface (optional, see in the code, default varies)
 CFG_obj_model_tkn_key = "model_tkn"   # token or key to pass to the model interface (optional, see in the code, default varies)
+CFG_lbl_model_key = "lbl_model"           # ML model interface ID string for use when auto-labeling in UI (optional)
+CFG_lbl_model_name_key = "lbl_model_name" # model name to pass to the auto-labeling model interface (optional, for picking model in the backend)
+CFG_lbl_model_url_key = "lbl_model_url"   # URL to pass to the auto-labeling model interface (optional)
+CFG_lbl_model_tkn_key = "lbl_model_tkn"   # token or key to pass to the auto-labeling model interface (optional)
+# objects config JSON
+CFG_obj_version_key = "version"  # config update counter (for detecting changes)
 CFG_obj_objects_key = "objects"  # list of objects of interest
-# object config JASON keys for each entry in the list of objects of interest
+# object config JSON keys for each entry in the list of objects of interest
 CFG_obj_id_key = "obj_id"        # unique ID of the object of interest (single word, used as the object dir name in the events folder)
 CFG_obj_names_key = "names"      # names of the object of interest (object name coming from Alexa should match one of them to get the answer)
 CFG_obj_desc_key = "desc"        # object description string suitable for identifying the object by the model (transparently passed to the model interface class)
@@ -82,8 +89,9 @@ DTS_max_items = 1000  # max number of items in a single dataset folder
 DTS_max_lbl_queue = 9 # max number of datasets in the queue for tagging
 DTS_version = 2       # version number for the dataset data (for versioning in case columns added/removed)
 DTS_train_data_file = "train_data.pkl" # Name of the pickle file where the train data is accumulated
-DTS_label_model_if = "openai-generic"  # Model interface to use for automatic labeling (e.g. ollama-generic)
-DTS_label_model = "o4-mini"            # Model name for the automatic labeling (e.g. gpt-4o-mini)
+DTS_label_model_if = "openai-generic"  # default interface to use for automatic labeling (e.g. ollama-generic)
+DTS_label_model = "o4-mini"            # default model name for the automatic labeling (e.g. gpt-4o-mini)
+DTS_model_url = "https://api.openai.com/v1" # default API base URL for the automatic labeling
 
 # Individual object of interest config schema (it's getting complex, so better use schema for validation)
 CFG_obj_schema = {

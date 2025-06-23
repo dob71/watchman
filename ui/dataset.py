@@ -398,7 +398,7 @@ def move_to_train_data_file(selected_dataset):
 # Automatically label an image, image_path - image folder path
 # skip_if_correct - mark the image to be skipped if the label is already correct
 # do_location - create file "location" with the object location descripton for the positive samples
-def label_image(image_path, skip_if_correct, do_location):
+def label_image(model_interface, image_path, skip_if_correct, do_location):
     print(f"Labeling image: {image_path}...", end="")
     image_pname = f"{image_path}/image.jpg"
     data_json_path = f"{image_path}/data.json"
@@ -419,7 +419,7 @@ def label_image(image_path, skip_if_correct, do_location):
         except: print("invalid image data.json, error marking to skip")
         return
     img_data = base64.b64encode(Path(image_pname).read_bytes()).decode()
-    res, msg = MODEL_INTERFACE.locate(img_data, o_desc, c_name, do_location)
+    res, msg = model_interface.locate(img_data, o_desc, c_name, do_location)
     # if msg is None then something did work in the model interface, giving up
     if msg is None:
         print(f"ignoring, no response from the model")
@@ -452,11 +452,19 @@ def auto_labeling(dataset_dir, num_images):
     skip_if_correct = st.session_state['auto_label_skip_if_correct']
     do_location = st.session_state['auto_label_do_location']
     with st.spinner("Labeling images..."):
+        # Loade model config
+        model_config = load_data(model_cfg_json_path) if os.path.exists(model_cfg_json_path) else {}
+        # and set up the interface to use (used auto-labeling)
+        model_interface = MODELS[model_config.get(CFG_lbl_model_key, DTS_label_model_if)](
+            model_to_use=model_config.get(CFG_lbl_model_name_key, DTS_label_model), 
+            api_base=model_config.get(CFG_lbl_model_url_key, DTS_model_url), 
+            api_key=model_config.get(CFG_lbl_model_tkn_key, os.getenv('OPENAI_API_KEY'))
+        )
         progress_bar = st.progress(0)
         for i, folder in enumerate(os.listdir(dataset_dir)):
             if not folder.isdigit(): continue
             image_dir = os.path.join(dataset_dir, folder)
-            label_image(image_dir, skip_if_correct, do_location)
+            label_image(model_interface, image_dir, skip_if_correct, do_location)
             progress_bar.progress((i + 1) / num_images)
     st.success("All images have been labeled!")
 

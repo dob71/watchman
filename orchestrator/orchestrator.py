@@ -35,8 +35,9 @@ CFGDIR = f"{DATA_DIR}/{CFG_dir}"
 IMGDIR = f"{DATA_DIR}/{IMG_dir}"
 EVTDIR = f"{DATA_DIR}/{EVT_dir}"
 
-# Objects of interest config file name
+# Config file paths
 OBJ_CONFIG = f"{CFGDIR}/{CFG_objects}"
+MODEL_CONFIG = f"{CFGDIR}/{CFG_model}"
 
 # Config dictionary
 CFG = {}
@@ -74,24 +75,42 @@ def get_modified_time_ago(filepath):
 # if the config was updated and has to be re-applied.
 def read_config():
     global CFG
-    # Load JSON first into new config object, 
-    # then chack the config version
+    model_cfg = {}
     try:
+        # Load model config separately if exists
+        if os.path.exists(MODEL_CONFIG):
+            with open(MODEL_CONFIG, "r") as file:
+                model_cfg = json.load(file)
+            if len(model_cfg) == 0 or not CFG_model_version_key in model_cfg.keys():
+                print(f"{sys._getframe().f_code.co_name}: malformed {MODEL_CONFIG}, no \"{CFG_model_version_key}\" key found")
+                return None
+            model_cfg_ver = model_cfg[CFG_model_version_key]
+    except json.JSONDecodeError as e:
+        print(f"{sys._getframe().f_code.co_name}: file {MODEL_CONFIG}, JSON error on line {e.lineno}: {e.msg}")
+        return None
+    except Exception as e:
+        print(f"{sys._getframe().f_code.co_name}: file {MODEL_CONFIG}, Failed to load JSON file:", e)
+        return None
+    try:
+        # Load objects config
         with open(OBJ_CONFIG, "r") as file:
-            new_cfg = json.load(file)
+            obj_cfg = json.load(file)
     except json.JSONDecodeError as e:
         print(f"{sys._getframe().f_code.co_name}: file {OBJ_CONFIG}, JSON error on line {e.lineno}: {e.msg}")
         return None
     except Exception as e:
         print(f"{sys._getframe().f_code.co_name}: file {OBJ_CONFIG}, Failed to load JSON file:", e)
         return None
-    if len(new_cfg) == 0 or not CFG_obj_version_key in new_cfg.keys():
-        print(f"{sys._getframe().f_code.co_name}: malformed config, no \"{CFG_obj_version_key}\" key found")
+    # Merge configurations
+    if len(obj_cfg) == 0 or not CFG_obj_version_key in obj_cfg.keys():
+        print(f"{sys._getframe().f_code.co_name}: malformed {OBJ_CONFIG}, no \"{CFG_obj_version_key}\" key found")
         return None
-    if len(CFG) != 0 and CFG_obj_version_key in CFG.keys() and CFG[CFG_obj_version_key] >= new_cfg[CFG_obj_version_key]:
-        return None
-    if not CFG_obj_objects_key in new_cfg.keys():
-       new_cfg[CFG_channels_key] = []
+    if len(CFG) != 0 and CFG_obj_version_key in CFG.keys() and CFG[CFG_obj_version_key] >= obj_cfg[CFG_obj_version_key]:
+        if len(model_cfg) != 0 and CFG_model_version_key in CFG.keys() and CFG[CFG_model_version_key] >= model_cfg[CFG_model_version_key]:
+            return None
+    if not CFG_obj_objects_key in obj_cfg.keys():
+       obj_cfg[CFG_channels_key] = []
+    new_cfg = {**obj_cfg, **model_cfg}
     return new_cfg
 
 # Atomic rename and load of the image data

@@ -25,19 +25,17 @@ def output_objects_json(obj_id_input, obj_names_input, desc_input, obj_svcs_inpu
     # Define the final JSON structure
     output = {
         CFG_obj_version_key: new_version,
-        CFG_obj_model_key: model[0][CFG_obj_model_key],
-        CFG_obj_model_name_key: model[0].get(CFG_obj_model_name_key),
-        CFG_obj_model_url_key: model[0].get(CFG_obj_model_url_key),
-        CFG_obj_model_tkn_key: model[0].get(CFG_obj_model_tkn_key),
         CFG_obj_objects_key: objects
     }
 
     # Convert the structure to a JSON string
     output_json = json.dumps(output, indent=4)
 
-    # Save the JSON output to a file
-    with open(objects_cfg_json_path, "w") as file:
+    # Save the JSON output atomically using temporary file
+    tmp_path = f"{objects_cfg_json_path}.tmp"
+    with open(tmp_path, "w") as file:
         file.write(output_json)
+    os.rename(tmp_path, objects_cfg_json_path)
 
     # Print the JSON output
     print(output_json)
@@ -53,22 +51,13 @@ def read_objects_json(obj_id_input, obj_names_input, desc_input, obj_svcs_input,
     else:
         with open(objects_cfg_json_path, "r") as file:
             data = json.load(file)
-            # Handle both string (legacy) and dict formats
-            model_config = data.get(CFG_obj_model_key, {})
-            if isinstance(model_config, str):
-                model[0] = {
-                    CFG_obj_model_key: model_config,
-                    CFG_obj_model_name_key: "",
-                    CFG_obj_model_url_key: "",
-                    CFG_obj_model_tkn_key: ""
-                }
-            else:
-                model[0] = {
-                    CFG_obj_model_key: model_config.get(CFG_obj_model_key, "ollama-simple"),
-                    CFG_obj_model_name_key: model_config.get(CFG_obj_model_name_key, ""),
-                    CFG_obj_model_url_key: model_config.get(CFG_obj_model_url_key, ""),
-                    CFG_obj_model_tkn_key: model_config.get(CFG_obj_model_tkn_key, "")
-                }
+            # Load objects data only
+            model[0] = {
+                CFG_obj_model_key: "ollama-simple",
+                CFG_obj_model_name_key: "",
+                CFG_obj_model_url_key: "",
+                CFG_obj_model_tkn_key: ""
+            }
 
             # Populate the lists
             for obj in data[CFG_obj_objects_key]:

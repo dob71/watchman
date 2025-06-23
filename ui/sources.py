@@ -31,9 +31,11 @@ def output_sources_json(channel_input, name_input, url_input, slider_input, new_
     # Convert the structure to a JSON string
     output_json = json.dumps(output, indent=4)
 
-    # Save the JSON output to a file
-    with open(imgsrc_cfg_json_path, "w") as file:
+    # Save the JSON output atomically using temporary file
+    tmp_path = f"{imgsrc_cfg_json_path}.tmp"
+    with open(tmp_path, "w") as file:
         file.write(output_json)
+    os.rename(tmp_path, imgsrc_cfg_json_path)
 
     # Print the JSON output
     print(output_json)
