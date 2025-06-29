@@ -47,3 +47,18 @@ def extract_ids(sources_data, objects_data):
    channels = [channel[CFG_chan_id_key] for channel in sources_data[CFG_channels_key]]
    objects = [obj[CFG_obj_id_key] for obj in objects_data[CFG_obj_objects_key]]
    return channels, objects
+
+# Get channel name from ID
+def chan_id_to_name(sources_data, c):
+    for channel in sources_data.get(CFG_channels_key, []):
+        if channel.get(CFG_chan_id_key) == c:
+            return channel.get(CFG_chan_name_key, c)
+    return c
+
+# Get object name from ID
+def obj_id_to_name(objects_data, o):
+    for obj in objects_data.get(CFG_obj_objects_key, []):
+        if obj.get(CFG_obj_id_key) == o:
+            names = obj.get(CFG_obj_names_key, [])
+            return names[0] if names else o
+    return o

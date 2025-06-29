@@ -26,7 +26,9 @@ def system_status_sm(key):
     st.markdown("### **Select a channel:**")
     col1, col2 = st.columns([4, 1])  # Create two columns with a ratio of 4:1
     with col1:
-        selected_channel = st.selectbox("channel", label_visibility='collapsed', options=[f"{chan}" for chan in channels])
+        selected_channel = st.selectbox("channel", label_visibility='collapsed', 
+                                        options=[f"{chan}" for chan in channels],
+                                        format_func=lambda c:chan_id_to_name(sources_data, c))
     with col2:
         if st.button('Refresh'):
             st.rerun()  # Rerun the app to refresh the page

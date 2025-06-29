@@ -243,7 +243,9 @@ def dataset_management_sm(key):
 
     # Add UI that displays the combinations to select
     st.markdown("### **Select a channel/object combination:**")
-    selected_combination = st.selectbox("channel/object", label_visibility='collapsed', options=[f"{comb[0]}/{comb[1]}" for comb in valid_combinations])
+    selected_combination = st.selectbox("channel/object", label_visibility='collapsed',
+                                        options=[f"{comb[0]}/{comb[1]}" for comb in valid_combinations],
+                                        format_func=lambda co: f"{chan_id_to_name(sources_data, co.split('/')[0])}/{obj_id_to_name(objects_data, co.split('/')[1])}")
 
     # Show user the number of images in the dataset, number of dataset queued for labeling and
     # a button allowing to add the currently selected dataset to the queue.
@@ -486,7 +488,9 @@ def dataset_labeling_sm(key):
 
     # Add UI that displays the combinations for labeling
     st.markdown("### **Select a channel/object combination:**")
-    selected_combination = st.selectbox("channel/object/2", label_visibility='collapsed', options=[f"{comb[0]}/{comb[1]}" for comb in valid_combinations])
+    selected_combination = st.selectbox("channel/object/2", label_visibility='collapsed',
+                                        options=[f"{comb[0]}/{comb[1]}" for comb in valid_combinations],
+                                        format_func=lambda co: f"{chan_id_to_name(sources_data, co.split('/')[0])}/{obj_id_to_name(objects_data, co.split('/')[1])}")
 
     # Let user select one of the datasets queued for labeling here (for the selected channel/object combination)
     datasets_queue_path = f"{DATASET_DIR}/{selected_combination}"

@@ -63,15 +63,18 @@ def read_sources_json(channel_input, name_input, url_input, slider_input):
     
     return (len(channel_input), version)
 
-
+# Update selection to new channel and force rerun
+def update_selection(channel_id):
+    st.session_state.new_channel_select = channel_id
+    st.rerun()
 
 # Add an extra source channel
 def add_channel(channel_input, name_input, url_input, slider_input):
-    channel_input.append("Unique lowercase word (used to name channel folders)")
-    name_input.append("Human readable channel name, like backyard, porch, ...")
-    url_input.append("URL to load the channel image from http://my.webcam.com/image.jpg")
-    slider_input.append(3)
+    url_input.append("http://my.webcam.com/image.jpg")
+    slider_input.append(5)
     st.session_state.num_channels += 1
+    channel_input.append(f"chan{st.session_state.num_channels}")
+    name_input.append(f"Channel {st.session_state.num_channels}")
 
 # handle removal of the channels
 def handle_channel_removal(index):
@@ -81,71 +84,97 @@ def handle_channel_removal(index):
         st.session_state.url_input.pop(index)
         st.session_state.slider_input.pop(index)
         st.session_state.num_channels -= 1
-        st.rerun()
 
 # Channels state machine section
 def configure_sources_sm(key):
     st.header("Configure Input Channels")
-    if "num_channels" not in st.session_state:
+    if "num_channels" not in st.session_state or "channel_input" not in st.session_state:
         st.session_state.num_channels = 0
 
-    with st.form(key = key):
-        if st.session_state.num_channels == 0:
-            st.session_state.channel_input = list()
-            st.session_state.name_input = list()
-            st.session_state.url_input = list()
-            st.session_state.slider_input = list()
+    # Read config if we have no channels initialized                                                                                                                        
+    if st.session_state.num_channels == 0:
+        st.session_state.channel_input = list()
+        st.session_state.name_input = list()
+        st.session_state.url_input = list()
+        st.session_state.slider_input = list()
 
-            (st.session_state.num_channels, st.session_state.sources_version) = read_sources_json(st.session_state.channel_input,
-                                                                                                  st.session_state.name_input,
-                                                                                                  st.session_state.url_input,
-                                                                                                  st.session_state.slider_input)
+        (st.session_state.num_channels, st.session_state.sources_version) = read_sources_json(st.session_state.channel_input,
+                                                                                                st.session_state.name_input,
+                                                                                                st.session_state.url_input,
+                                                                                                st.session_state.slider_input)
 
-        st.subheader("List of channels")
-        for i in range(st.session_state.num_channels):
-            st.divider()
-            st.subheader(f"Channel {i}")
-            st.session_state.channel_input[i] = st.text_input("Channel ID", 
-                                                              key = "channel" + str(i), 
-                                                              value=st.session_state.channel_input[i],
-                                                              help="Unique identifier used to name the channel's folder (lowercase, no spaces)")
-            st.session_state.name_input[i] = st.text_input("Channel name",
-                                                            key = "name" + str(i),
-                                                            value=st.session_state.name_input[i],
-                                                            help="Human-readable name for voice responses and UI display")
-            st.session_state.url_input[i] = st.text_input("Channel image load URL",
-                                                            key = "url" + str(i),
-                                                            value=st.session_state.url_input[i],
-                                                            help="Source URL for camera feed (supports http/s, rtsp, and local files)")
-            st.session_state.slider_input[i] = st.slider("Image update interval", 0, 10, st.session_state.slider_input[i],
-                                                            key='upd_int' + str(i),
-                                                            help="How often to check for new images (in multiples of 1 second)")
-            # Create a button to handle removal
-            if st.form_submit_button(f"Remove Channel {i}"):
-                handle_channel_removal(i)
-
-        st.divider()
-        if st.form_submit_button(label='Add channel'):
-            add_channel(st.session_state.channel_input,
-                        st.session_state.name_input,
-                        st.session_state.url_input,
-                        st.session_state.slider_input)
-            st.rerun()  # Rerun to reflect changes immediately
-
-        if st.form_submit_button(label='Confirm configuration', type='primary'):
-            if len(st.session_state.channel_input) != len(set(st.session_state.channel_input)):
-                st.error("Error: Channel IDs should be unique. Please fix before confirmation.")
-            else:
-                print("Streaming mode: Producing sources.json file")
-                st.session_state.sources_version += 1
-                output_sources_json(st.session_state.channel_input,
-                                    st.session_state.name_input,
-                                    st.session_state.url_input,
-                                    st.session_state.slider_input,
-                                    st.session_state.sources_version)
-
-                st.session_state.app_state = "init"
+    st.subheader(f"Select Channel:")
+    col1, col2, col3 = st.columns([7.5, 1, 2])
+    with col1:
+        # Initialize or update channel selection
+        if 'new_channel_select' in st.session_state:
+            st.session_state.channel_select = st.session_state.new_channel_select
+            del st.session_state.new_channel_select
+            
+        selected_channel = st.selectbox(
+            "Select a channel:",
+            options=st.session_state.channel_input,
+            help="Select a channel to configure",
+            label_visibility='collapsed',
+            key="channel_select",
+            format_func=lambda x: f"{st.session_state.name_input[st.session_state.channel_input.index(x)]}"
+        )
+    with col2:
+        if st.button("Add"): 
+            add_channel(
+                st.session_state.channel_input,
+                st.session_state.name_input,
+                st.session_state.url_input,
+                st.session_state.slider_input
+            )
+            update_selection(st.session_state.channel_input[-1])
+    with col3:
+        if st.button("Remove"):
+            if st.session_state.num_channels > 0 and selected_channel in st.session_state.channel_input:
+                handle_channel_removal(st.session_state.channel_input.index(selected_channel))
                 st.rerun()
+
+    if st.session_state.num_channels > 0:
+        st.subheader(f"Channel Configuration")
+        channel_index = st.session_state.channel_input.index(selected_channel)
+        #st.session_state.channel_input[channel_index] = st.text_input(
+        #    "Channel ID", 
+        #    key = "channel", 
+        #    value=st.session_state.channel_input[channel_index],
+        #    help="Unique identifier used to name the channel's folder (lowercase, no spaces)"
+        #)
+        st.session_state.name_input[channel_index] = st.text_input(
+            "Channel name",
+            key = "name",
+            value=st.session_state.name_input[channel_index],
+            help="Human-readable name for voice responses and UI display"
+        )
+        st.session_state.url_input[channel_index] = st.text_input(
+            "Channel image load URL",
+            key = "url",
+            value=st.session_state.url_input[channel_index],
+            help="Source URL for camera feed (supports http/s, rtsp, and local files)"
+        )
+        st.session_state.slider_input[channel_index] = st.slider(
+            "Image update interval", 0, 10, st.session_state.slider_input[channel_index],
+            key='upd_int',
+            help="How often to check for new images (in multiples of 1 second)"
+        )
+        
+    if st.button(label='Apply Changes'):
+        if len(st.session_state.channel_input) != len(set(st.session_state.channel_input)):
+            st.error("Error: Channel IDs should be unique. Please fix before confirmation.")
+        else:
+            print("Streaming mode: Producing sources.json file")
+            st.session_state.sources_version += 1
+            output_sources_json(st.session_state.channel_input,
+                                st.session_state.name_input,
+                                st.session_state.url_input,
+                                st.session_state.slider_input,
+                                st.session_state.sources_version)
+
+            st.session_state.app_state = "init"
+            st.rerun()
 
     # Add a "Back" button to go back to the start form
     if st.button("Back"):

@@ -47,9 +47,9 @@ if __name__ == "__main__":
         with st.form(key='start_form'):
             col1, col2 = st.columns(2)
             col2.markdown("### **Configuration**")
+            col2.form_submit_button(label='Configure LLMs', on_click=models_callback)
             col2.form_submit_button(label='Configure Input Channels', on_click=sources_callback)
             col2.form_submit_button(label='Configure Objects of interest', on_click=objects_callback)
-            col2.form_submit_button(label='Configure LLMs', on_click=models_callback)
             col1.markdown("### **System Management**")
             col1.form_submit_button(label='System Status', on_click=status_callback)
             col1.form_submit_button(label='Data Collection', on_click=dataset_mgmt_callback)
