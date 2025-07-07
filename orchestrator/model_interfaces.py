@@ -1,16 +1,19 @@
 # This file is for classes defining model interfaces for intracting w/ ML models
 # Note: the model interface here should be just that, the interface, the model shold be served elsewhere
-from ollama import chat, generate
+import ollama
 import openai
 import time
+import os
 
 # This interface is primarily for using in the UI auto-labeling of the collected images
-# for fine tuning. The UI pulls the OpenAI API key from the .env file OPENAI_API_KEY variable.
+# for fine tuning. The UI pulls the OpenAI API key from the .env file OPENAI_API_KEY variable
+# if it is not in the config JSON.
 class OpenAiGenericInterface:
-    def __init__(self, model_to_use='o4-mini', api_key='NONE', api_base='https://api.openai.com/v1'):
+    def __init__(self, model_to_use='o4-mini', api_key='', api_base='https://api.openai.com/v1'):
         self.api_base = api_base
         self.model_to_use = model_to_use
-        self.client = openai.OpenAI(api_key=api_key, base_url=api_base)
+        cur_api_key = api_key if len(api_key) > 0 else os.getenv('OPENAI_API_KEY')
+        self.client = openai.OpenAI(api_key=cur_api_key, base_url=api_base)
         print(f"Using model: {self.model_to_use} with API base: {self.api_base}")
 
     def __del__(self):
@@ -19,6 +22,15 @@ class OpenAiGenericInterface:
     @staticmethod
     def model_name():
         return "openai-generic"
+
+    # What are the model parameters and their defaults
+    @staticmethod
+    def model_parameters():
+        return {
+            "model_to_use": 'o4-mini',
+            "api_base": 'https://api.openai.com/v1',
+            "api_key": '',
+        }
 
     def gen_detect_prompt(self, obj_desc, image_desc):
         prompt = (
@@ -107,11 +119,12 @@ class OpenAiGenericInterface:
         return ret, msg
 
 class VLLMLlama32Interface:
-    def __init__(self, model_to_use=None, api_key='NONE', api_base='http://localhost:5050/v1'):
+    def __init__(self, model_to_use='auto', api_key='', api_base='http://localhost:5050/v1'):
         self.api_base = api_base
-        self.client = openai.OpenAI(api_key=api_key, base_url=api_base)
+        cur_api_key = api_key if len(api_key) > 0 else os.getenv('VLLM_API_KEY')
+        self.client = openai.OpenAI(api_key=cur_api_key, base_url=api_base)
         try:
-            if model_to_use is None:
+            if model_to_use is None or model_to_use == 'auto':
                 models = self.client.models.list()
                 for m in models:
                     model_to_use = m.id
@@ -127,6 +140,15 @@ class VLLMLlama32Interface:
     @staticmethod
     def model_name():
         return "vllm-complex"
+
+    # What are the model parameters and their defaults
+    @staticmethod
+    def model_parameters():
+        return {
+            "model_to_use": 'auto',
+            "api_base": 'http://localhost:5050/v1',
+            "api_key": '',
+        }
 
     def gen_detect_prompt(self, obj_desc, image_desc):
         prompt = (
@@ -207,10 +229,12 @@ class VLLMLlama32Interface:
         return ret, msg
 
 class OllamaLlama32Interface:
-    def __init__(self, model_to_use='llama3.2-vision:11b-instruct-fp16'):
+    def __init__(self, model_to_use='llama3.2-vision:11b-instruct-fp16', api_base='http://localhost:11434'):
         self.model_to_use = model_to_use
+        self.client = None
         try:
-            rsp = chat(
+            self.client = ollama.Client(host=api_base)
+            rsp = self.client.chat(
                 model = self.model_to_use,
                 messages = [],
             )
@@ -220,12 +244,13 @@ class OllamaLlama32Interface:
 
     def __del__(self):
         try:
-            rsp = chat(
-                model = self.model_to_use,
-                messages = [],
-                keep_alive = 0,
-            )
-            print(f"Model: {rsp.model}, result:{rsp.done_reason}")
+            if self.client is not None:
+                rsp = self.client.chat(
+                    model = self.model_to_use,
+                    messages = [],
+                    keep_alive = 0,
+                )
+                print(f"Model: {rsp.model}, result:{rsp.done_reason}")
         except Exception as e:
             print(f"Exception unloading {self.model_to_use}: {e}")
     
@@ -233,6 +258,14 @@ class OllamaLlama32Interface:
     @staticmethod
     def model_name():
         return "ollama-complex"
+
+    # What are the model parameters and their defaults
+    @staticmethod
+    def model_parameters():
+        return {
+               "model_to_use": 'llama3.2-vision:11b-instruct-fp16',
+               "api_base": 'http://localhost:11434',
+        }
 
     # Detector prompt generator
     def gen_detect_prompt(self, obj_desc, image_desc):
@@ -256,7 +289,7 @@ class OllamaLlama32Interface:
     # returns: tuple with the True/False for the detection result and a string with the verbal description of the location
     def locate(self, image_data, obj_desc, image_desc, do_location = True):
         prompt = self.gen_detect_prompt(obj_desc, image_desc)
-        rsp = generate(
+        rsp = self.client.generate(
             model=self.model_to_use,
             prompt=prompt,
             images=[image_data],
@@ -270,7 +303,7 @@ class OllamaLlama32Interface:
         if not "yes" in rsp.response.lower() or not do_location:
             return ret, msg
         prompt = self.gen_locate_prompt(obj_desc, image_desc)
-        rsp = generate(
+        rsp = self.client.generate(
             model=self.model_to_use,
             prompt=prompt,
             images=[image_data],

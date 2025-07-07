@@ -460,7 +460,7 @@ def auto_labeling(dataset_dir, num_images):
         model_interface = MODELS[model_config.get(CFG_lbl_model_key, DTS_label_model_if)](
             model_to_use=model_config.get(CFG_lbl_model_name_key, DTS_label_model), 
             api_base=model_config.get(CFG_lbl_model_url_key, DTS_model_url), 
-            api_key=model_config.get(CFG_lbl_model_tkn_key, os.getenv('OPENAI_API_KEY'))
+            api_key=model_config.get(CFG_lbl_model_tkn_key, '')
         )
         progress_bar = st.progress(0)
         for i, folder in enumerate(os.listdir(dataset_dir)):

@@ -2,6 +2,7 @@ import streamlit as st
 import json
 import os
 import sys
+import random
 
 # Pull in shared variables (file names, JSON object names, ...)
 sys.path.append(os.path.dirname(__file__))
@@ -10,277 +11,333 @@ sys.path.append(os.path.abspath("."))
 from ui_common import *
 
 # Create objects.json file
-def output_objects_json(obj_id_input, obj_names_input, desc_input, obj_svcs_input, model, new_version):
-    objects = list()
-    for i in range(len(obj_id_input)):
-        objects.append(
-            {
-                CFG_obj_id_key: obj_id_input[i],
-                CFG_obj_names_key: [x.strip() for x in obj_names_input[i].split(',')],
-                CFG_obj_desc_key: desc_input[i],
-                CFG_obj_svcs_key: list(obj_svcs_input[i].values())
-            }
-        )
+def output_objects_json(objects_dict, model, new_version):
+    objects = []
+    for obj_id, obj_data in objects_dict.items():
+        objects.append({
+            CFG_obj_id_key: obj_id,
+            CFG_obj_names_key: [x.strip() for x in obj_data['names'].split(',')],
+            CFG_obj_desc_key: obj_data['desc'],
+            CFG_obj_svcs_key: [svc for svc in obj_data['svcs'].values() if svc.get('active', False)]
+        })
 
-    # Define the final JSON structure
     output = {
         CFG_obj_version_key: new_version,
         CFG_obj_objects_key: objects
     }
 
-    # Convert the structure to a JSON string
     output_json = json.dumps(output, indent=4)
-
-    # Save the JSON output atomically using temporary file
     tmp_path = f"{objects_cfg_json_path}.tmp"
     with open(tmp_path, "w") as file:
         file.write(output_json)
     os.rename(tmp_path, objects_cfg_json_path)
-
-    # Print the JSON output
     print(output_json)
 
-# Read objects.json to pre-populate the values in the input boxes
-# Return the number of objects which is determined by the number of entries in objects.json and the current version number.
-def read_objects_json(obj_id_input, obj_names_input, desc_input, obj_svcs_input, model):
-    if not os.path.exists(objects_cfg_json_path):
-        # Provide default data as a fallback when objects.json does not exist
-        st.session_state.num_objects = 0
-        add_object(obj_id_input, obj_names_input, desc_input, obj_svcs_input)
-        version = 1
-    else:
+# Read objects.json to pre-populate the values
+def read_objects_json():
+    objects_dict = {}
+    version = 1
+    if os.path.exists(objects_cfg_json_path):
         with open(objects_cfg_json_path, "r") as file:
             data = json.load(file)
-            # Load objects data only
-            model[0] = {
-                CFG_obj_model_key: "ollama-simple",
-                CFG_obj_model_name_key: "",
-                CFG_obj_model_url_key: "",
-                CFG_obj_model_tkn_key: ""
-            }
-
-            # Populate the lists
-            for obj in data[CFG_obj_objects_key]:
-                obj_id_input.append(obj[CFG_obj_id_key])
-                obj_names_input.append(','.join(obj[CFG_obj_names_key]))
-                desc_input.append(obj[CFG_obj_desc_key])
-                svcs_dict = dict()
-                for item in obj[CFG_obj_svcs_key]:
-                    svcs_dict[item[CFG_osvc_name_key]] = item
-                obj_svcs_input.append(svcs_dict)
-            
             version = data[CFG_obj_version_key]
-    
-    return (len(obj_id_input), version, model)
+            for obj in data[CFG_obj_objects_key]:
+                obj_id = obj[CFG_obj_id_key]
+                objects_dict[obj_id] = {
+                    'names': ','.join(obj[CFG_obj_names_key]),
+                    'desc': obj[CFG_obj_desc_key],
+                    'svcs': {item[CFG_osvc_name_key]: item for item in obj[CFG_obj_svcs_key]}
+                }
+    return objects_dict, version
 
-# Add an extra object
-def add_object(obj_id_input, obj_names_input, desc_input, obj_svcs_input):
-    obj_id_input.append("Unique lowercase word (used to name object folders)")
-    obj_names_input.append("Comma separated list of various ways you'd reference the object: my cat, a cat,...")
-    desc_input.append("Verbal description of the object for the AI model")
-    obj_svcs_input.append({CFG_loc_svc_name : {  #list of dictionaries of string:dictionaries pairs
+# Add a new object with unique ID
+def add_object():
+    new_id = f"obj_{hex(random.getrandbits(64))[2:]}"
+    st.session_state.objects[new_id] = {
+        'names': f"New Object, alt name...",
+        'desc': "Object description",
+        'svcs': {
+            CFG_loc_svc_name: {
                 CFG_osvc_name_key: CFG_loc_svc_name,
                 CFG_osvc_msgtpl_key: "I saw [OBJNAME] [TIMEAGO] ago on the [CHANNEL] camera. [LOCATION]",
                 CFG_osvc_age_out_key: 10800,
                 CFG_osvc_def_off_key: True
-            }})
-    st.session_state.num_objects += 1
+            },
+            CFG_alrt_svc_name: {
+                CFG_osvc_name_key: CFG_alrt_svc_name,
+                CFG_osvc_msgtpl_key: "I see [OBJNAME] on the [CHANNEL] camera. [LOCATION]",
+                CFG_osvc_age_out_key: 60,
+                CFG_osvc_mtime_key: 300,
+                CFG_osvc_def_off_key: True
+            },
+            CFG_dset_svc_name: {
+                CFG_osvc_name_key: CFG_dset_svc_name,
+                CFG_osvc_pname_key: f"{DATA_DIR}/dataset",
+                CFG_osvc_def_off_key: True,
+                CFG_osvc_msgtpl_key: "",
+                CFG_osvc_age_out_key: 0
+            }
+        }
+    }
+    st.session_state.selected_object = new_id
+    st.rerun()
 
-# Get the object service dictionary associated with object at a specific index 
-def get_obj_svcs_dict(obj_svcs_input, index):
+def channel_multiselect(service_name, help_text, obj_svcs, obj_id, channel_options):
+    current_skip = [
+        (chan_id, chan_name)
+        for chan_id in obj_svcs.get(service_name, {}).get(CFG_osvc_skip_chan_key, [])
+        for chan_id_option, chan_name in channel_options if chan_id_option == chan_id
+    ]
+    
+    session_key = f"cskip_{service_name}_{obj_id}"
+    valid_channels = {chan[0] for chan in channel_options}
+    filtered_skip = [c for c in current_skip if c[0] in valid_channels]
+    
+    if session_key not in st.session_state:
+        st.session_state[session_key] = filtered_skip
+    
+    def update_session():
+        new_value = [c[0] for c in st.session_state[session_key]]
+        st.session_state.objects[obj_id]['svcs'][service_name][CFG_osvc_skip_chan_key] = new_value
+
+    return st.multiselect(
+        "Channels to skip",
+        options=channel_options,
+        default=filtered_skip,
+        format_func=lambda x: x[1],
+        help=help_text,
+        key=session_key,
+        on_change=update_session
+    )
+
+def get_obj_svcs_dict(obj_id):
+    sources_data = load_data(imgsrc_cfg_json_path)
+    objects_data = load_data(objects_cfg_json_path) if os.path.exists(objects_cfg_json_path) else {CFG_obj_objects_key: []}
+    channels, objects = extract_ids(sources_data, objects_data)
+    channel_options = [(chan, chan_id_to_name(sources_data, chan)) for chan in channels]
+    
+    obj_data = st.session_state.objects[obj_id]
+    svcs = obj_data['svcs']
+    
     with st.container(border=True):
         location_on = st.toggle("Activate location service",
-                                key = "location_toggle" + str(index), 
-                                value=(CFG_loc_svc_name in obj_svcs_input[index]))
+                               key=f"location_toggle_{obj_id}",
+                               value=CFG_loc_svc_name in svcs,
+                               help="The location service allows to keep track of the location of the object and report it when requested.")
 
-        msgtpl = st.text_input("Output message", key = "msgtpl" + str(index),
-                                value = (
-                                    ""  # Default value
-                                    if CFG_loc_svc_name not in obj_svcs_input[index] or CFG_osvc_msgtpl_key not in obj_svcs_input[index][CFG_loc_svc_name] 
-                                    else obj_svcs_input[index][CFG_loc_svc_name][CFG_osvc_msgtpl_key]
-                                ),
-                                help="Message template using variables: [LOCATION] - object position, [CHANNEL] - camera name, [OBJNAME] - object name"
-                               )
-        age_out = st.number_input("Age out (secs)", min_value = 0, key = "age_out" + str(index),
-                                    value = (
-                                        0  # Default value
-                                        if CFG_loc_svc_name not in obj_svcs_input[index] or CFG_osvc_age_out_key not in obj_svcs_input[index][CFG_loc_svc_name] 
-                                        else obj_svcs_input[index][CFG_loc_svc_name][CFG_osvc_age_out_key]
-                                    ),                            
-                                    format="%d",
-                                    help="How long to keep location updates (0 = never expire)")
-        def_off = st.selectbox("Default off", boolean_selection, key = "def_off" + str(index),
-                                index = (
-                                    0 # Default value
-                                    if CFG_loc_svc_name not in obj_svcs_input[index] or CFG_osvc_def_off_key not in obj_svcs_input[index][CFG_loc_svc_name] 
-                                    else boolean_selection.index(obj_svcs_input[index][CFG_loc_svc_name][CFG_osvc_def_off_key])
-                                ),
-                                help="Start with this service disabled by default?")
-        skip_ch = st.text_input("Channels to skip (comma separated list)", key = "skip_ch" + str(index),
-                                value = (
-                                    ""  # Default value
-                                    if CFG_loc_svc_name not in obj_svcs_input[index] or CFG_osvc_skip_chan_key not in obj_svcs_input[index][CFG_loc_svc_name] 
-                                    else ','.join(obj_svcs_input[index][CFG_loc_svc_name][CFG_osvc_skip_chan_key])
-                                ),
-                                help="Which cameras to exclude from this service (use channel IDs)")
+        msgtpl = st.text_input("Output message", 
+                              key=f"msgtpl_{obj_id}",
+                              value=svcs.get(CFG_loc_svc_name, {}).get(CFG_osvc_msgtpl_key, ""),
+                              help="Message template using variables: [LOCATION] - object position, [CHANNEL] - camera name, [OBJNAME] - object name, [TIMEAGO] - time since detection, [OBJECT] - name as in the question")
         
-        obj_svcs_input[index][CFG_loc_svc_name] = {  #list of dictionaries of string:dictionaries pairs
-                                        CFG_osvc_name_key: CFG_loc_svc_name,
-                                        CFG_osvc_msgtpl_key: msgtpl,
-                                        CFG_osvc_age_out_key: age_out,
-                                        CFG_osvc_def_off_key: def_off,
-                                        CFG_osvc_skip_chan_key: [x.strip() for x in skip_ch.split(',')]
-                                    }
+        age_out = st.number_input("Age out (secs)", min_value=0,
+                                 key=f"age_out_{obj_id}",
+                                 value=svcs.get(CFG_loc_svc_name, {}).get(CFG_osvc_age_out_key, 0),
+                                 format="%d",
+                                 help="How long to keep location updates (0 = never expire)")
         
-        #if skip_ch contains only empty string, remove it
-        if obj_svcs_input[index][CFG_loc_svc_name][CFG_osvc_skip_chan_key][0] == "":  
-            obj_svcs_input[index][CFG_loc_svc_name].pop(CFG_osvc_skip_chan_key, None)
-
-        if not location_on:
-            obj_svcs_input[index].pop(CFG_loc_svc_name, None)
+        def_off = st.selectbox("Default off", boolean_selection,
+                             key=f"def_off_{obj_id}",
+                             index=boolean_selection.index(svcs.get(CFG_loc_svc_name, {}).get(CFG_osvc_def_off_key, True)),
+                             help="Start with this service disabled by default?")
+        
+        selected_channels = channel_multiselect(CFG_loc_svc_name, "Select channels to exclude from the location tracking", 
+                                               svcs, obj_id, channel_options)
+        
+        svcs[CFG_loc_svc_name] = {
+            'active': location_on,
+            CFG_osvc_name_key: CFG_loc_svc_name,
+            CFG_osvc_msgtpl_key: msgtpl,
+            CFG_osvc_age_out_key: age_out,
+            CFG_osvc_def_off_key: def_off,
+            CFG_osvc_skip_chan_key: [chan[0] for chan in selected_channels]
+        }
 
     with st.container(border=True):
-        alert_on = st.toggle("Activate alert service", key = "alert_toggle" + str(index), value=(CFG_alrt_svc_name in obj_svcs_input[index]))
+        alert_on = st.toggle("Activate alert service", 
+                            key=f"alert_toggle_{obj_id}",
+                            value=CFG_alrt_svc_name in svcs,
+                            help="The alert service allows to make an announcement when the object is detected")
 
-        msgtpl = st.text_input("Output message", key = "msgtpl_alert" + str(index),
-                                value = (
-                                    ""  # Default value
-                                    if CFG_alrt_svc_name not in obj_svcs_input[index] or CFG_osvc_msgtpl_key not in obj_svcs_input[index][CFG_alrt_svc_name] 
-                                    else obj_svcs_input[index][CFG_alrt_svc_name][CFG_osvc_msgtpl_key]
-                                ),
-                                help="Message template using variables: [LOCATION] - object position, [CHANNEL] - camera name, [OBJNAME] - object name, [TIMEAGO] - time since detection, [OBJECT] - name from question"
-                              )
-        age_out = st.number_input("Age out (secs)", min_value = 0, key = "age_out_alert" + str(index),
-                                    value = (
-                                        0  # Default value
-                                        if CFG_alrt_svc_name not in obj_svcs_input[index] or CFG_osvc_age_out_key not in obj_svcs_input[index][CFG_alrt_svc_name] 
-                                        else obj_svcs_input[index][CFG_alrt_svc_name][CFG_osvc_age_out_key]
-                                    ),                            
-                                    format="%d",
-                                    help="How long to keep alert records (0 = never expire)")
-        mute_time = st.number_input("Mute time (secs)", min_value = 0, key = "mute_time_alert" + str(index),
-                                    value = (
-                                        600  # Default value
-                                        if CFG_alrt_svc_name not in obj_svcs_input[index] or CFG_osvc_mtime_key not in obj_svcs_input[index][CFG_alrt_svc_name] 
-                                        else obj_svcs_input[index][CFG_alrt_svc_name][CFG_osvc_mtime_key]
-                                    ),                            
-                                    format="%d",
-                                    help="Cooldown period between alerts for the same object")
-        def_off = st.selectbox("Default off", boolean_selection, key = "def_off_alert" + str(index),
-                                index = (
-                                    0 # Default value
-                                    if CFG_alrt_svc_name not in obj_svcs_input[index] or CFG_osvc_def_off_key not in obj_svcs_input[index][CFG_alrt_svc_name] 
-                                    else boolean_selection.index(obj_svcs_input[index][CFG_alrt_svc_name][CFG_osvc_def_off_key])
-                                ),
-                                help="Start with alerts disabled by default?")
-        skip_ch = st.text_input("Channels to skip (comma separated list)", key = "skip_ch_alert" + str(index),
-                                value = (
-                                    ""  # Default value
-                                    if CFG_alrt_svc_name not in obj_svcs_input[index] or CFG_osvc_skip_chan_key not in obj_svcs_input[index][CFG_alrt_svc_name] 
-                                    else ','.join(obj_svcs_input[index][CFG_alrt_svc_name][CFG_osvc_skip_chan_key])
-                                ),
-                                help="Which cameras to exclude from alerts (use channel IDs)")
-
-        obj_svcs_input[index][CFG_alrt_svc_name] = {  #list of dictionaries of string:dictionaries pairs
-                                        CFG_osvc_name_key: CFG_alrt_svc_name,
-                                        CFG_osvc_msgtpl_key: msgtpl,
-                                        CFG_osvc_age_out_key: age_out,
-                                        CFG_osvc_mtime_key: mute_time,
-                                        CFG_osvc_def_off_key: def_off,
-                                        CFG_osvc_skip_chan_key: [x.strip() for x in skip_ch.split(',')] 
-                                    }
+        msgtpl = st.text_input("Output message", 
+                              key=f"msgtpl_alert_{obj_id}",
+                              value=svcs.get(CFG_alrt_svc_name, {}).get(CFG_osvc_msgtpl_key, ""),
+                              help="Message template using variables: [LOCATION] - object position, [CHANNEL] - camera name, [OBJNAME] - object name, [TIMEAGO] - time since detection, [OBJECT] - default object name")
         
-        #if skip_ch contains only empty string, remove it
-        if obj_svcs_input[index][CFG_alrt_svc_name][CFG_osvc_skip_chan_key][0] == "":  
-            obj_svcs_input[index][CFG_alrt_svc_name].pop(CFG_osvc_skip_chan_key, None)
+        age_out = st.number_input("Age out (secs)", min_value=0,
+                                 key=f"age_out_alert_{obj_id}",
+                                 value=svcs.get(CFG_alrt_svc_name, {}).get(CFG_osvc_age_out_key, 0),
+                                 format="%d",
+                                 help="How long to keep alert records (0 = never expire)")
+        
+        mute_time = st.number_input("Mute time (secs)", min_value=0,
+                                   key=f"mute_time_alert_{obj_id}",
+                                   value=svcs.get(CFG_alrt_svc_name, {}).get(CFG_osvc_mtime_key, 300),
+                                   format="%d",
+                                   help="Cooldown period between alerts for the same object")
+        
+        def_off = st.selectbox("Default off", boolean_selection,
+                             key=f"def_off_alert_{obj_id}",
+                             index=boolean_selection.index(svcs.get(CFG_alrt_svc_name, {}).get(CFG_osvc_def_off_key, True)),
+                             help="Start with alerts disabled by default?")
+        
+        selected_channels = channel_multiselect(CFG_alrt_svc_name, "Select channels to exclude from the alerts", 
+                                               svcs, obj_id, channel_options)
 
-        if not alert_on:
-            obj_svcs_input[index].pop(CFG_alrt_svc_name, None)
+        svcs[CFG_alrt_svc_name] = {
+            'active': alert_on,
+            CFG_osvc_name_key: CFG_alrt_svc_name,
+            CFG_osvc_msgtpl_key: msgtpl,
+            CFG_osvc_age_out_key: age_out,
+            CFG_osvc_mtime_key: mute_time,
+            CFG_osvc_def_off_key: def_off,
+            CFG_osvc_skip_chan_key: [chan[0] for chan in selected_channels]
+        }
 
-    return obj_svcs_input[index]
+    with st.container(border=True):
+        dataset_on = st.toggle("Activate dataset service", 
+                             key=f"dataset_toggle_{obj_id}",
+                             value=CFG_dset_svc_name in svcs,
+                             help="The dataset service collects data for model training")
+
+        pname = st.text_input("Dataset path",
+                            key=f"dataset_pname_{obj_id}",
+                            value=svcs.get(CFG_dset_svc_name, {}).get(CFG_osvc_pname_key, "./.data/dataset"),
+                            help="Path to store dataset files")
+        
+        def_off = st.selectbox("Default off", boolean_selection,
+                             key=f"dataset_def_off_{obj_id}",
+                             index=boolean_selection.index(svcs.get(CFG_dset_svc_name, {}).get(CFG_osvc_def_off_key, True)),
+                             help="Start with this service disabled by default?")
+        
+        selected_channels = channel_multiselect(CFG_dset_svc_name, "Select channels to exclude from the data collection", 
+                                               svcs, obj_id, channel_options)
+
+        svcs[CFG_dset_svc_name] = {
+            'active': dataset_on,
+            CFG_osvc_name_key: CFG_dset_svc_name,
+            CFG_osvc_pname_key: pname,
+            CFG_osvc_def_off_key: def_off,
+            CFG_osvc_skip_chan_key: [chan[0] for chan in selected_channels],
+            CFG_osvc_msgtpl_key: "",
+            CFG_osvc_age_out_key: 0
+        }
+
+    return svcs
 
 # handle removal of the objects
-def handle_object_removal(index):
-    if st.session_state.num_objects > 1:  #keep one object at a minimum
-        st.session_state.obj_id_input.pop(index)
-        st.session_state.obj_names_input.pop(index)
-        st.session_state.desc_input.pop(index)
-        st.session_state.obj_svcs_input.pop(index)
-        st.session_state.num_objects -= 1
-        st.rerun()
+def handle_object_removal(obj_id):
+    if len(st.session_state.objects) > 1:  # keep one object at a minimum
+        del st.session_state.objects[obj_id]
+        st.session_state.selected_object = next(iter(st.session_state.objects.keys())) if st.session_state.objects else None
 
-# Objects state machine section
 def configure_objects_sm(key):
     st.header("Configure Objects of interest")
-    if "num_objects" not in st.session_state:
-        st.session_state.num_objects = 0
+    
+    if "objects" not in st.session_state:
+        st.session_state.objects, st.session_state.objects_version = read_objects_json()
+    
+    if "selected_object" not in st.session_state:
+        st.session_state.selected_object = next(iter(st.session_state.objects.keys())) if st.session_state.objects else None
 
-    with st.form(key=key):
-        if "model" not in st.session_state:
-            st.session_state.model = [{
-                CFG_obj_model_key: "ollama-simple",
-                CFG_obj_model_name_key: "",
-                CFG_obj_model_url_key: "",
-                CFG_obj_model_tkn_key: ""
-            }]
-            
-        if st.session_state.num_objects == 0:
-            st.session_state.obj_id_input = list()
-            st.session_state.obj_names_input = list()
-            st.session_state.desc_input = list()
-            st.session_state.obj_svcs_input = list()
-            (st.session_state.num_objects, st.session_state.objects_version, _) = read_objects_json(st.session_state.obj_id_input,
-                                                                                                                        st.session_state.obj_names_input,
-                                                                                                                        st.session_state.desc_input,
-                                                                                                                        st.session_state.obj_svcs_input,
-                                                                                                                        st.session_state.model)
+    # Update callback to preserve selection
+    def update_selection():
+        st.session_state.selected_object = st.session_state.object_select
 
+    st.subheader("Select Object:")
+    col1, col2, col3 = st.columns([7.5, 1, 2])
+    
+    with col1:
+        if "selected_object" in st.session_state:
+            st.session_state["object_select"] = st.session_state["selected_object"]
 
-        for i in range(st.session_state.num_objects):
-            st.divider()
-            st.subheader(f"Object {i}")
-            st.session_state.obj_id_input[i] = st.text_input(f"Object ID ",
-                                                            key="obj_id" + str(i),
-                                                            value=st.session_state.obj_id_input[i],
-                                                            help="Unique identifier for the object (used in folder names)")
-            st.session_state.obj_names_input[i] = st.text_input(f"Object names (comma separated list)",
-                                                                key="obj_names" + str(i),
-                                                                value=st.session_state.obj_names_input[i],
-                                                                help="Various names/aliases for voice recognition (e.g. 'cat,kitty,feline')")
-            st.session_state.desc_input[i] = st.text_input("Description " + str(i),
-                                                            key="desc" + str(i),
-                                                            value=st.session_state.desc_input[i],
-                                                            help="Detailed description for AI detection (appearance, distinguishing features)")
-            st.session_state.obj_svcs_input[i] = get_obj_svcs_dict(st.session_state.obj_svcs_input, i)
-
-            # Create a button to handle removal
-            if st.form_submit_button(f"Remove Object {i}"):
-                handle_object_removal(i)
-
-        st.divider()
-        if st.form_submit_button(label='Add object'):
-            add_object(st.session_state.obj_id_input,
-                        st.session_state.obj_names_input,
-                        st.session_state.desc_input,
-                        st.session_state.obj_svcs_input)
-            st.rerun()  # Rerun to reflect changes immediately
-
-        if st.form_submit_button(label='Confirm configuration', type='primary'):
-            if len(st.session_state.obj_id_input) != len(set(st.session_state.obj_id_input)):
-                st.error("Error: Object IDs should be unique. Please fix before confirmation.")
-            else:
-                print("Streaming mode: Producing objects.json file")
-                st.session_state.objects_version += 1
-                output_objects_json(st.session_state.obj_id_input,
-                                    st.session_state.obj_names_input,
-                                    st.session_state.desc_input,
-                                    st.session_state.obj_svcs_input,
-                                    st.session_state.model,
-                                    st.session_state.objects_version)
-                st.session_state.app_state = "init"
+        selected_object = st.selectbox(
+            "Select object:",
+            options=list(st.session_state.objects.keys()),
+            format_func=lambda oid: st.session_state.objects[oid]['names'].split(',')[0],
+            label_visibility='collapsed',
+            key="object_select",
+            on_change=update_selection
+        )
+    
+    with col2:
+        if st.button("Add"):
+            add_object()
+    
+    with col3:
+        if st.button("Remove"):
+            if st.session_state.objects and st.session_state.selected_object in st.session_state.objects:
+                handle_object_removal(st.session_state.selected_object)
                 st.rerun()
 
-    # Add a "Back" button to go back to the start form
+    if st.session_state.objects:
+        obj_id = st.session_state.selected_object
+        obj_data = st.session_state.objects[obj_id]
+        
+        st.subheader("Object Configuration")
+        
+        new_names = st.text_input(
+            "Object names (comma separated)",
+            value=obj_data['names'],
+            help="Comma separated list of the names for referencing the object, the first entry is the default, must be unique across all objects"
+        )
+        if new_names != obj_data['names']:
+            obj_data['names'] = new_names
+            st.rerun()
+        
+        new_desc = st.text_input(
+            "Description",
+            value=obj_data['desc'],
+            help="Verbal description of the object for the AI model, for example: a black and white tuxedo cat"
+        )
+        if new_desc != obj_data['desc']:
+            obj_data['desc'] = new_desc
+        
+        obj_data['svcs'] = get_obj_svcs_dict(obj_id)
+
+    if st.button('Apply All Changes'):
+        # Process auto-generated object IDs
+        new_objects = {}
+        used_ids = set()
+        all_names = []
+        
+        for obj_id, obj_data in st.session_state.objects.items():
+            # Generate base ID from first name if it's an auto-generated ID
+            if obj_id.startswith("obj_"):
+                # Get first name and sanitize
+                base_name = obj_data['names'].split(',')[0].strip().lower()
+                base_id = ''.join(c for c in base_name if c.isalnum())
+                
+                # Handle empty base ID case
+                if not base_id:
+                    base_id = obj_id
+            else:
+                base_id = obj_id
+
+            used_ids.add(base_id)
+            new_objects[base_id] = obj_data
+            all_names.extend([name.strip().lower() for name in obj_data['names'].split(',')])
+
+        # Check if any random IDs remain
+        for obj_id in used_ids:
+            if obj_id.startswith("obj_"):
+                st.error(f"Error: cannot generate unique ID for object {new_objects[obj_id]['name'].split(',')[0]}.")
+                return
+
+        # Check for duplicate names
+        name_counts = {}
+        for name in all_names:
+            name_counts[name] = name_counts.get(name, 0) + 1
+            
+        duplicates = {name for name, count in name_counts.items() if count > 1}
+        if duplicates:
+            st.error(f"Object names must be unique. Duplicates: {', '.join(sorted(duplicates))}")
+        else:
+            # Update session state with new IDs
+            st.session_state.objects = new_objects
+            output_objects_json(st.session_state.objects, [{}], st.session_state.objects_version + 1)
+            st.rerun()
+
     if st.button("Back"):
         st.session_state.app_state = "init"
         st.rerun()

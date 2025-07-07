@@ -44,8 +44,8 @@ def load_data(file_path):
 
 # Extract channel ids and object ids from JSON files
 def extract_ids(sources_data, objects_data):
-   channels = [channel[CFG_chan_id_key] for channel in sources_data[CFG_channels_key]]
-   objects = [obj[CFG_obj_id_key] for obj in objects_data[CFG_obj_objects_key]]
+   channels = [channel[CFG_chan_id_key] for channel in sources_data.get(CFG_channels_key, [])]
+   objects = [obj[CFG_obj_id_key] for obj in objects_data.get(CFG_obj_objects_key, [])]
    return channels, objects
 
 # Get channel name from ID
