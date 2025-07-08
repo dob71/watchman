@@ -12,7 +12,7 @@ class OpenAiGenericInterface:
     def __init__(self, model_to_use='o4-mini', api_key='', api_base='https://api.openai.com/v1'):
         self.api_base = api_base
         self.model_to_use = model_to_use
-        cur_api_key = api_key if len(api_key) > 0 else os.getenv('OPENAI_API_KEY')
+        cur_api_key = api_key if len(api_key) > 0 else os.getenv('OPENAI_API_KEY', 'NONE')
         self.client = openai.OpenAI(api_key=cur_api_key, base_url=api_base)
         print(f"Using model: {self.model_to_use} with API base: {self.api_base}")
 
@@ -121,7 +121,7 @@ class OpenAiGenericInterface:
 class VLLMLlama32Interface:
     def __init__(self, model_to_use='auto', api_key='', api_base='http://localhost:5050/v1'):
         self.api_base = api_base
-        cur_api_key = api_key if len(api_key) > 0 else os.getenv('VLLM_API_KEY')
+        cur_api_key = api_key if len(api_key) > 0 else os.getenv('VLLM_API_KEY', 'NONE')
         self.client = openai.OpenAI(api_key=cur_api_key, base_url=api_base)
         try:
             if model_to_use is None or model_to_use == 'auto':

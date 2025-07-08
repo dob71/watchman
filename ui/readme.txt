@@ -12,25 +12,37 @@ sources.json:
             "channel": "porch",
             "name": "Porch",
             "url": "file://./.data/dataset/porch/00055.jpg",
-            "upd_int": 5
+            "upd_int": 5,
+            "width": 1280,
+            "height": 720,
+            "quality": 50
         },
         {
             "channel": "driveway",
             "name": "Driveway",
             "url": "file://./.data/dataset/driveway/00054.jpg",
-            "upd_int": 5
+            "upd_int": 5,
+            "width": 1280,
+            "height": 720,
+            "quality": 50
         },
         {
             "channel": "front",
             "name": "Frontyard",
             "url": "file://./.data/dataset/front/00058.jpg",
-            "upd_int": 5
+            "upd_int": 5,
+            "width": 1280,
+            "height": 720,
+            "quality": 50
         },
         {
             "channel": "back",
             "name": "Backyard",
             "url": "file://./.data/dataset/back/00057.jpg",
-            "upd_int": 5
+            "upd_int": 5,
+            "width": 1280,
+            "height": 720,
+            "quality": 50
         }
     ]
 }

@@ -10,6 +10,37 @@ sys.path.append(os.path.abspath("."))
 
 from ui_common import *
 
+def get_default_services():
+    """Return default service structure with all parameters preserved when inactive"""
+    return {
+        CFG_loc_svc_name: {
+            'active': False,
+            CFG_osvc_name_key: CFG_loc_svc_name,
+            CFG_osvc_msgtpl_key: "I saw [OBJNAME] [TIMEAGO] ago on the [CHANNEL] camera. [LOCATION]",
+            CFG_osvc_age_out_key: 10800,
+            CFG_osvc_def_off_key: True,
+            CFG_osvc_skip_chan_key: []
+        },
+        CFG_alrt_svc_name: {
+            'active': False,
+            CFG_osvc_name_key: CFG_alrt_svc_name,
+            CFG_osvc_msgtpl_key: "I see [OBJNAME] on the [CHANNEL] camera. [LOCATION]",
+            CFG_osvc_age_out_key: 60,
+            CFG_osvc_mtime_key: 300,
+            CFG_osvc_def_off_key: True,
+            CFG_osvc_skip_chan_key: []
+        },
+        CFG_dset_svc_name: {
+            'active': False,
+            CFG_osvc_name_key: CFG_dset_svc_name,
+            CFG_osvc_pname_key: f"{DATA_DIR}/dataset",
+            CFG_osvc_def_off_key: True,
+            CFG_osvc_msgtpl_key: "",
+            CFG_osvc_age_out_key: 0,
+            CFG_osvc_skip_chan_key: []
+        }
+    }
+
 # Create objects.json file
 def output_objects_json(objects_dict, model, new_version):
     objects = []
@@ -43,10 +74,23 @@ def read_objects_json():
             version = data[CFG_obj_version_key]
             for obj in data[CFG_obj_objects_key]:
                 obj_id = obj[CFG_obj_id_key]
+                # Merge stored config with default services
+                default_services = get_default_services()
+                stored_services = {item[CFG_osvc_name_key]: item for item in obj[CFG_obj_svcs_key]}
+                
+                # Preserve all service parameters even when inactive
+                merged_services = {}
+                for svc_name, default_svc in default_services.items():
+                    merged_services[svc_name] = {
+                        **default_svc,
+                        **stored_services.get(svc_name, {}),
+                        'active': stored_services.get(svc_name, {}).get('active', False)
+                    }
+
                 objects_dict[obj_id] = {
                     'names': ','.join(obj[CFG_obj_names_key]),
                     'desc': obj[CFG_obj_desc_key],
-                    'svcs': {item[CFG_osvc_name_key]: item for item in obj[CFG_obj_svcs_key]}
+                    'svcs': merged_services
                 }
     return objects_dict, version
 
@@ -54,30 +98,9 @@ def read_objects_json():
 def add_object():
     new_id = f"obj_{hex(random.getrandbits(64))[2:]}"
     st.session_state.objects[new_id] = {
-        'names': f"New Object, alt name...",
+        'names': f"New object, alt name...",
         'desc': "Object description",
-        'svcs': {
-            CFG_loc_svc_name: {
-                CFG_osvc_name_key: CFG_loc_svc_name,
-                CFG_osvc_msgtpl_key: "I saw [OBJNAME] [TIMEAGO] ago on the [CHANNEL] camera. [LOCATION]",
-                CFG_osvc_age_out_key: 10800,
-                CFG_osvc_def_off_key: True
-            },
-            CFG_alrt_svc_name: {
-                CFG_osvc_name_key: CFG_alrt_svc_name,
-                CFG_osvc_msgtpl_key: "I see [OBJNAME] on the [CHANNEL] camera. [LOCATION]",
-                CFG_osvc_age_out_key: 60,
-                CFG_osvc_mtime_key: 300,
-                CFG_osvc_def_off_key: True
-            },
-            CFG_dset_svc_name: {
-                CFG_osvc_name_key: CFG_dset_svc_name,
-                CFG_osvc_pname_key: f"{DATA_DIR}/dataset",
-                CFG_osvc_def_off_key: True,
-                CFG_osvc_msgtpl_key: "",
-                CFG_osvc_age_out_key: 0
-            }
-        }
+        'svcs': get_default_services()
     }
     st.session_state.selected_object = new_id
     st.rerun()
@@ -93,9 +116,7 @@ def channel_multiselect(service_name, help_text, obj_svcs, obj_id, channel_optio
     valid_channels = {chan[0] for chan in channel_options}
     filtered_skip = [c for c in current_skip if c[0] in valid_channels]
     
-    if session_key not in st.session_state:
-        st.session_state[session_key] = filtered_skip
-    
+    # Removed manual session state initialization to prevent conflict
     def update_session():
         new_value = [c[0] for c in st.session_state[session_key]]
         st.session_state.objects[obj_id]['svcs'][service_name][CFG_osvc_skip_chan_key] = new_value
@@ -118,31 +139,38 @@ def get_obj_svcs_dict(obj_id):
     
     obj_data = st.session_state.objects[obj_id]
     svcs = obj_data['svcs']
+
+    # Ensure all services exist with defaults
+    for svc_name, default_svc in get_default_services().items():
+        if svc_name not in svcs:
+            svcs[svc_name] = default_svc
     
     with st.container(border=True):
+        # Location service
+        service_data = svcs[CFG_loc_svc_name]
         location_on = st.toggle("Activate location service",
-                               key=f"location_toggle_{obj_id}",
-                               value=CFG_loc_svc_name in svcs,
-                               help="The location service allows to keep track of the location of the object and report it when requested.")
+                              key=f"location_toggle_{obj_id}",
+                              value=service_data['active'],
+                              help="The location service allows to keep track of the location of the object and report it when requested.")
 
         msgtpl = st.text_input("Output message", 
-                              key=f"msgtpl_{obj_id}",
-                              value=svcs.get(CFG_loc_svc_name, {}).get(CFG_osvc_msgtpl_key, ""),
-                              help="Message template using variables: [LOCATION] - object position, [CHANNEL] - camera name, [OBJNAME] - object name, [TIMEAGO] - time since detection, [OBJECT] - name as in the question")
+                             key=f"msgtpl_{obj_id}",
+                             value=service_data.get(CFG_osvc_msgtpl_key, ""),
+                             help="Message template using variables: [LOCATION] - object position, [CHANNEL] - camera name, [OBJNAME] - object name, [TIMEAGO] - time since detection, [OBJECT] - name as in the question")
         
         age_out = st.number_input("Age out (secs)", min_value=0,
-                                 key=f"age_out_{obj_id}",
-                                 value=svcs.get(CFG_loc_svc_name, {}).get(CFG_osvc_age_out_key, 0),
-                                 format="%d",
-                                 help="How long to keep location updates (0 = never expire)")
+                                key=f"age_out_{obj_id}",
+                                value=service_data.get(CFG_osvc_age_out_key, 0),
+                                format="%d",
+                                help="How long to keep location updates (0 = never expire)")
         
         def_off = st.selectbox("Default off", boolean_selection,
-                             key=f"def_off_{obj_id}",
-                             index=boolean_selection.index(svcs.get(CFG_loc_svc_name, {}).get(CFG_osvc_def_off_key, True)),
-                             help="Start with this service disabled by default?")
+                            key=f"def_off_{obj_id}",
+                            index=boolean_selection.index(service_data.get(CFG_osvc_def_off_key, True)),
+                            help="Start with this service disabled by default?")
         
         selected_channels = channel_multiselect(CFG_loc_svc_name, "Select channels to exclude from the location tracking", 
-                                               svcs, obj_id, channel_options)
+                                              svcs, obj_id, channel_options)
         
         svcs[CFG_loc_svc_name] = {
             'active': location_on,
@@ -154,35 +182,37 @@ def get_obj_svcs_dict(obj_id):
         }
 
     with st.container(border=True):
+        # Alert service
+        service_data = svcs[CFG_alrt_svc_name]
         alert_on = st.toggle("Activate alert service", 
-                            key=f"alert_toggle_{obj_id}",
-                            value=CFG_alrt_svc_name in svcs,
-                            help="The alert service allows to make an announcement when the object is detected")
+                           key=f"alert_toggle_{obj_id}",
+                           value=service_data['active'],
+                           help="The alert service allows to make an announcement when the object is detected")
 
         msgtpl = st.text_input("Output message", 
-                              key=f"msgtpl_alert_{obj_id}",
-                              value=svcs.get(CFG_alrt_svc_name, {}).get(CFG_osvc_msgtpl_key, ""),
-                              help="Message template using variables: [LOCATION] - object position, [CHANNEL] - camera name, [OBJNAME] - object name, [TIMEAGO] - time since detection, [OBJECT] - default object name")
+                             key=f"msgtpl_alert_{obj_id}",
+                             value=service_data.get(CFG_osvc_msgtpl_key, ""),
+                             help="Message template using variables: [LOCATION] - object position, [CHANNEL] - camera name, [OBJNAME] - object name, [TIMEAGO] - time since detection, [OBJECT] - default object name")
         
         age_out = st.number_input("Age out (secs)", min_value=0,
-                                 key=f"age_out_alert_{obj_id}",
-                                 value=svcs.get(CFG_alrt_svc_name, {}).get(CFG_osvc_age_out_key, 0),
-                                 format="%d",
-                                 help="How long to keep alert records (0 = never expire)")
+                                key=f"age_out_alert_{obj_id}",
+                                value=service_data.get(CFG_osvc_age_out_key, 0),
+                                format="%d",
+                                help="How long to keep alert records (0 = never expire)")
         
         mute_time = st.number_input("Mute time (secs)", min_value=0,
-                                   key=f"mute_time_alert_{obj_id}",
-                                   value=svcs.get(CFG_alrt_svc_name, {}).get(CFG_osvc_mtime_key, 300),
-                                   format="%d",
-                                   help="Cooldown period between alerts for the same object")
+                                  key=f"mute_time_alert_{obj_id}",
+                                  value=service_data.get(CFG_osvc_mtime_key, 300),
+                                  format="%d",
+                                  help="Cooldown period between alerts for the same object")
         
         def_off = st.selectbox("Default off", boolean_selection,
-                             key=f"def_off_alert_{obj_id}",
-                             index=boolean_selection.index(svcs.get(CFG_alrt_svc_name, {}).get(CFG_osvc_def_off_key, True)),
-                             help="Start with alerts disabled by default?")
+                            key=f"def_off_alert_{obj_id}",
+                            index=boolean_selection.index(service_data.get(CFG_osvc_def_off_key, True)),
+                            help="Start with alerts disabled by default?")
         
         selected_channels = channel_multiselect(CFG_alrt_svc_name, "Select channels to exclude from the alerts", 
-                                               svcs, obj_id, channel_options)
+                                              svcs, obj_id, channel_options)
 
         svcs[CFG_alrt_svc_name] = {
             'active': alert_on,
@@ -195,23 +225,25 @@ def get_obj_svcs_dict(obj_id):
         }
 
     with st.container(border=True):
+        # Dataset service
+        service_data = svcs[CFG_dset_svc_name]
         dataset_on = st.toggle("Activate dataset service", 
                              key=f"dataset_toggle_{obj_id}",
-                             value=CFG_dset_svc_name in svcs,
+                             value=service_data['active'],
                              help="The dataset service collects data for model training")
 
         pname = st.text_input("Dataset path",
                             key=f"dataset_pname_{obj_id}",
-                            value=svcs.get(CFG_dset_svc_name, {}).get(CFG_osvc_pname_key, "./.data/dataset"),
+                            value=service_data.get(CFG_osvc_pname_key, "./.data/dataset"),
                             help="Path to store dataset files")
         
         def_off = st.selectbox("Default off", boolean_selection,
-                             key=f"dataset_def_off_{obj_id}",
-                             index=boolean_selection.index(svcs.get(CFG_dset_svc_name, {}).get(CFG_osvc_def_off_key, True)),
-                             help="Start with this service disabled by default?")
+                            key=f"dataset_def_off_{obj_id}",
+                            index=boolean_selection.index(service_data.get(CFG_osvc_def_off_key, True)),
+                            help="Start with this service disabled by default?")
         
         selected_channels = channel_multiselect(CFG_dset_svc_name, "Select channels to exclude from the data collection", 
-                                               svcs, obj_id, channel_options)
+                                              svcs, obj_id, channel_options)
 
         svcs[CFG_dset_svc_name] = {
             'active': dataset_on,
@@ -229,16 +261,26 @@ def get_obj_svcs_dict(obj_id):
 def handle_object_removal(obj_id):
     if len(st.session_state.objects) > 1:  # keep one object at a minimum
         del st.session_state.objects[obj_id]
-        st.session_state.selected_object = next(iter(st.session_state.objects.keys())) if st.session_state.objects else None
+        if st.session_state.objects:
+            st.session_state.selected_object = list(st.session_state.objects.keys())[0]
+        else:
+            st.session_state.selected_object = None
 
 def configure_objects_sm(key):
     st.header("Configure Objects of interest")
     
+    # Initialize session state only once when entering the UI
     if "objects" not in st.session_state:
         st.session_state.objects, st.session_state.objects_version = read_objects_json()
     
-    if "selected_object" not in st.session_state:
-        st.session_state.selected_object = next(iter(st.session_state.objects.keys())) if st.session_state.objects else None
+    # Reset selection if invalid
+    if "selected_object" not in st.session_state or \
+       (st.session_state.objects and st.session_state.selected_object not in st.session_state.objects):
+        st.session_state.selected_object = (
+            list(st.session_state.objects.keys())[0] 
+            if st.session_state.objects 
+            else None
+        )
 
     # Update callback to preserve selection
     def update_selection():
@@ -248,17 +290,26 @@ def configure_objects_sm(key):
     col1, col2, col3 = st.columns([7.5, 1, 2])
     
     with col1:
-        if "selected_object" in st.session_state:
-            st.session_state["object_select"] = st.session_state["selected_object"]
+        if st.session_state.objects:
+            st.session_state["object_select"] = st.session_state.selected_object
 
-        selected_object = st.selectbox(
-            "Select object:",
-            options=list(st.session_state.objects.keys()),
-            format_func=lambda oid: st.session_state.objects[oid]['names'].split(',')[0],
-            label_visibility='collapsed',
-            key="object_select",
-            on_change=update_selection
-        )
+            selected_object = st.selectbox(
+                "Select object:",
+                options=list(st.session_state.objects.keys()),
+                format_func=lambda oid: st.session_state.objects[oid]['names'].split(',')[0],
+                label_visibility='collapsed',
+                key="object_select",
+                on_change=update_selection
+            )
+        else:
+            st.selectbox(
+                "Select object:",
+                options=[],
+                label_visibility='collapsed',
+                disabled=True,
+                help="No objects available"
+            )
+            st.session_state.selected_object = None
     
     with col2:
         if st.button("Add"):
@@ -270,7 +321,7 @@ def configure_objects_sm(key):
                 handle_object_removal(st.session_state.selected_object)
                 st.rerun()
 
-    if st.session_state.objects:
+    if st.session_state.objects and st.session_state.selected_object:
         obj_id = st.session_state.selected_object
         obj_data = st.session_state.objects[obj_id]
         
@@ -321,7 +372,7 @@ def configure_objects_sm(key):
         # Check if any random IDs remain
         for obj_id in used_ids:
             if obj_id.startswith("obj_"):
-                st.error(f"Error: cannot generate unique ID for object {new_objects[obj_id]['name'].split(',')[0]}.")
+                st.error(f"Error: cannot generate unique ID for object {new_objects[obj_id]['names'].split(',')[0]}.")
                 return
 
         # Check for duplicate names
@@ -336,6 +387,7 @@ def configure_objects_sm(key):
             # Update session state with new IDs
             st.session_state.objects = new_objects
             output_objects_json(st.session_state.objects, [{}], st.session_state.objects_version + 1)
+            st.session_state.app_state = "init"
             st.rerun()
 
     if st.button("Back"):

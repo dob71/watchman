@@ -24,6 +24,9 @@ from dataset import dataset_labeling_sm, dataset_management_sm
 #               |                               |
 #               -----> system_status ------------ 
 if __name__ == "__main__":
+    # Ensure configuration directory exists
+    os.makedirs(CFGDIR, exist_ok=True)
+    
     st.title("Watchman")
     if "app_state" not in st.session_state or st.session_state.app_state == "init":
         def status_callback():
@@ -51,9 +54,11 @@ if __name__ == "__main__":
             col2.form_submit_button(label='Configure Input Channels', on_click=sources_callback)
             col2.form_submit_button(label='Configure Objects of interest', on_click=objects_callback)
             col1.markdown("### **System Management**")
-            col1.form_submit_button(label='System Status', on_click=status_callback)
-            col1.form_submit_button(label='Data Collection', on_click=dataset_mgmt_callback)
-            col1.form_submit_button(label='Training on Collected Data', on_click=dataset_lbl_callback)
+            # Check if config files exist
+            config_files_exist = os.path.exists(imgsrc_cfg_json_path) and os.path.exists(objects_cfg_json_path)
+            col1.form_submit_button(label='System Status', on_click=status_callback, disabled=not config_files_exist)
+            col1.form_submit_button(label='Data Collection', on_click=dataset_mgmt_callback, disabled=not config_files_exist)
+            col1.form_submit_button(label='Training on Collected Data', on_click=dataset_lbl_callback, disabled=not config_files_exist)
 
     elif st.session_state.app_state == "system_status":
         system_status_sm('system_status_form')

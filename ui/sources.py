@@ -49,7 +49,7 @@ def add_channel():
     rnd = hex(random.getrandbits(64))[2:]
     chan_id = f"chan_{rnd}"
     st.session_state.channels[chan_id] = {
-        "name": f"Channel {rnd}",
+        "name": f"New channel",
         "url": "http://my.webcam.com/image.jpg",
         "slider": 5,
         "width": 1280,
@@ -62,16 +62,10 @@ def add_channel():
 # Return the number of channels which is determined by the number of entries in sources.json and the current version number.
 def read_sources_json():
     channels = {}
-    if not os.path.exists(imgsrc_cfg_json_path):
-        # Provide hypothetical defaults when sources.json does not exist
-        st.session_state.num_channels = 0
-        add_channel()
-        version = 1
-    else:
+    version = 1
+    if os.path.exists(imgsrc_cfg_json_path):
         with open(imgsrc_cfg_json_path, "r") as file:
             data = json.load(file)
-
-            # Populate the lists
             version = data[CFG_version_key]
             for channel in data[CFG_channels_key]:
                 chan_id = channel[CFG_chan_id_key]
@@ -83,7 +77,6 @@ def read_sources_json():
                     "height": channel.get(CFG_chan_img_h_key, 720),
                     "quality": channel.get(CFG_chan_img_q_key, 50)
                 }
-    
     return (channels, version)
 
 # Update selection to new channel and force rerun
@@ -98,59 +91,68 @@ def handle_channel_removal(chan_id):
 # Channels state machine section
 def configure_sources_sm(key):
     st.header("Configure Input Channels")
-    # Initialize channels dictionary if needed
+    
+    # Initialize session state only once when entering the UI
     if "channels" not in st.session_state:
-        st.session_state.channels = {}
-        st.session_state.sources_version = 1
-        # Migrate old list-based format if exists
-        if hasattr(st.session_state, 'channel_input'):
-            for i, chan_id in enumerate(getattr(st.session_state, 'channel_input', [])):
-                st.session_state.channels[chan_id] = {
-                    "name": st.session_state.name_input[i],
-                    "url": st.session_state.url_input[i],
-                    "slider": st.session_state.slider_input[i],
-                    "width": getattr(st.session_state, 'width_input', [1280]*len(st.session_state.channel_input))[i],
-                    "height": getattr(st.session_state, 'height_input', [720]*len(st.session_state.channel_input))[i],
-                    "quality": getattr(st.session_state, 'quality_input', [50]*len(st.session_state.channel_input))[i]
-                }
-            # Clean up old attributes
-            for attr in ['channel_input', 'name_input', 'url_input', 'slider_input', 'num_channels', 'width_input', 'height_input', 'quality_input']:
-                if hasattr(st.session_state, attr):
-                    delattr(st.session_state, attr)
-        
-        # Load from config file if empty
-        if not st.session_state.channels:
-            st.session_state.channels, st.session_state.sources_version = read_sources_json()
+        st.session_state.channels, st.session_state.sources_version = read_sources_json()
+    
+    # Reset selection if invalid
+    if "current_channel_select" not in st.session_state or \
+       (st.session_state.channels and st.session_state.current_channel_select not in st.session_state.channels):
+        st.session_state.current_channel_select = (
+            list(st.session_state.channels.keys())[0] 
+            if st.session_state.channels 
+            else None
+        )
 
     st.subheader(f"Select Channel:")
     col1, col2, col3 = st.columns([7.5, 1, 2])
+    
     with col1:
-        if "current_channel_select" in st.session_state:
-            st.session_state["channel_select"] = st.session_state["current_channel_select"]
+        options = list(st.session_state.channels.keys()) if st.session_state.channels else []
+        
+        # Always show selectbox even when empty
+        if options:
+            # Validate current selection exists
+            if st.session_state.current_channel_select not in options:
+                st.session_state.current_channel_select = options[0]
+            
+            st.session_state["channel_select"] = st.session_state.current_channel_select
 
-        selected_channel = st.selectbox(
-            "Select a channel:",
-            options=list(st.session_state.channels.keys()),
-            help="Select a channel to configure",
-            label_visibility='collapsed',
-            key="channel_select",
-            format_func=lambda x: st.session_state.channels[x]["name"],
-            on_change=lambda: update_selection(st.session_state["channel_select"])
-        )
+            selected_channel = st.selectbox(
+                "Select a channel:",
+                options=options,
+                help="Select a channel to configure",
+                label_visibility='collapsed',
+                key="channel_select",
+                format_func=lambda x: st.session_state.channels[x]["name"],
+                on_change=lambda: update_selection(st.session_state["channel_select"])
+            )
+        else:
+            st.selectbox(
+                "Select a channel:",
+                options=[],
+                label_visibility='collapsed',
+                disabled=True,
+                help="No channels available"
+            )
+            st.session_state.current_channel_select = None
+    
     with col2:
         if st.button("Add"): 
             new_chan_id = add_channel()
             update_selection(new_chan_id)
             st.rerun()
+    
     with col3:
         if st.button("Remove"):
-            if st.session_state.channels and selected_channel in st.session_state.channels:
-                handle_channel_removal(selected_channel)
+            if st.session_state.channels and st.session_state.current_channel_select in st.session_state.channels:
+                handle_channel_removal(st.session_state.current_channel_select)
                 st.rerun()
 
-    if st.session_state.channels:
+    if st.session_state.channels and st.session_state.current_channel_select:
         st.subheader(f"Channel Configuration")
-        chan_id = selected_channel
+        chan_id = st.session_state.current_channel_select
         channel = st.session_state.channels[chan_id]
         
         # Channel name input
@@ -230,12 +232,13 @@ def configure_sources_sm(key):
         # Process auto-generated channel IDs
         new_channels = {}
         used_ids = set()
+        id_mapping = {}  # Track old ID -> new ID mapping
         
         for chan_id, chan_data in st.session_state.channels.items():
             if chan_id.startswith("chan_"):
                 # Generate base ID from name
-                base_id = chan_data["name"].lower().strip()
-                base_id = ''.join(c for c in base_id if c.isalnum())
+                base_name = chan_data["name"].lower().strip()
+                base_id = ''.join(c for c in base_name if c.isalnum())
                 
                 # Handle empty base ID case
                 if not base_id:
@@ -243,8 +246,13 @@ def configure_sources_sm(key):
             else:
                 base_id = chan_id
 
+            id_mapping[chan_id] = base_id
             used_ids.add(base_id)
             new_channels[base_id] = chan_data
+
+        # Update selected channel if it was renamed
+        if st.session_state.current_channel_select in id_mapping:
+            st.session_state.current_channel_select = id_mapping[st.session_state.current_channel_select]
 
         # Check if any random IDs remain
         for chan_id in used_ids:
@@ -252,12 +260,9 @@ def configure_sources_sm(key):
                 st.error(f"Error: cannot generate unique ID for channel {new_channels[chan_id]['name']}.")
                 return
 
-        # Update session state with new channel IDs
-        st.session_state.channels = new_channels
-
         # Check for unique IDs and names
-        channel_ids = list(st.session_state.channels.keys())
-        channel_names = [chan["name"] for chan in st.session_state.channels.values()]
+        channel_ids = list(new_channels.keys())
+        channel_names = [chan["name"] for chan in new_channels.values()]
 
         # Check for duplicate IDs
         if len(channel_ids) != len(set(channel_ids)):
@@ -269,7 +274,10 @@ def configure_sources_sm(key):
             st.error("Error: Channel names must be unique.")
             return
         
+        # Update session state with new IDs before saving
+        st.session_state.channels = new_channels
         st.session_state.sources_version += 1
+        
         output_sources_json(
             list(st.session_state.channels.keys()),
             [chan["name"] for chan in st.session_state.channels.values()],
