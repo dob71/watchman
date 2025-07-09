@@ -35,6 +35,11 @@ if [ ! -e "${DATA_DIR}" ]; then
   ! mkdir -p "${DATA_DIR}" && echo "Unable to create \"${DATA_DIR}\", exiting!" && exit 2
 fi
 
+if [ ! -e "${IPC_DIR}" ]; then
+  echo "The IPC_DIR \"${IPC_DIR}\" does not exist, creating..."
+  ! mkdir -p "${IPC_DIR}" && echo "Unable to create \"${IPC_DIR}\", exiting!" && exit 2
+fi
+
 mkdir -p "$LOGS_DIR"
 
 # export all the evironment to subshells

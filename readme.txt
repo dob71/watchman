@@ -17,6 +17,7 @@ Follow the steps below to set the system up to run locally.
    pip install -r ./requirements.txt
 5. Create a .env file w/ the system specific settings, for example:
      DATA_DIR=./.data
+     IPC_DIR=./.ipc
      OLLAMA_MODELS_DIR=/home/user/models/ollama
      ALEXA_SKILL_ID=amzn1.ask.skill.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
      NOTIFY_ME_ID=nmac.XXXXXXXXXXXXXXXXXXXXXXXXXXXXX

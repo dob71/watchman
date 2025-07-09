@@ -19,6 +19,7 @@ DATA_DIR = ''
 if not os.path.exists('/.dockerenv'):
     load_dotenv('./.env')
 DATA_DIR = os.getenv('DATA_DIR', DATA_DIR)
+IPC_DIR = os.getenv('IPC_DIR', '.ipc')
 
 # Alexa skill ID for request verification
 NOTIFY_ME_ID = os.getenv('NOTIFY_ME_ID')
@@ -28,7 +29,7 @@ if (NOTIFY_ME_ID is None or len(NOTIFY_ME_ID) == 0) and (ALERT_SCRIPT is None or
     exit(1)
 
 # We'll need the images and config folders.
-EVTDIR = f"{DATA_DIR}/{EVT_dir}"
+EVTDIR = f"{IPC_DIR}/{EVT_dir}"
 
 # Aler JSON file name
 ALERT_JSON = f"{CFG_alrt_svc_name}.json"

@@ -16,10 +16,11 @@ if not os.path.exists('/.dockerenv'):
     from dotenv import load_dotenv
     load_dotenv('./.env')
 DATA_DIR = os.getenv('DATA_DIR', DATA_DIR)
+IPC_DIR = os.getenv('IPC_DIR', '.ipc')
 
 # We'll need the images and config folders.
-IMGDIR = f"{DATA_DIR}/{IMG_dir}"
-EVTDIR = f"{DATA_DIR}/{EVT_dir}"
+IMGDIR = f"{IPC_DIR}/{IMG_dir}"
+EVTDIR = f"{IPC_DIR}/{EVT_dir}"
 CFGDIR = f"{DATA_DIR}/{CFG_dir}"
 
 # Model configuration

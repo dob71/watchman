@@ -29,11 +29,12 @@ DATA_DIR = ''
 if not os.path.exists('/.dockerenv'):
     load_dotenv('./.env')
 DATA_DIR = os.getenv('DATA_DIR', DATA_DIR)
+IPC_DIR = os.getenv('IPC_DIR', '.ipc')
 
 # We'll need the images and config folders.
 CFGDIR = f"{DATA_DIR}/{CFG_dir}"
-IMGDIR = f"{DATA_DIR}/{IMG_dir}"
-EVTDIR = f"{DATA_DIR}/{EVT_dir}"
+IMGDIR = f"{IPC_DIR}/{IMG_dir}"
+EVTDIR = f"{IPC_DIR}/{EVT_dir}"
 
 # Config file paths
 OBJ_CONFIG = f"{CFGDIR}/{CFG_objects}"

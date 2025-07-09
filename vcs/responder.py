@@ -19,10 +19,11 @@ DATA_DIR = ''
 if not os.path.exists('/.dockerenv'):
     load_dotenv('./.env')
 DATA_DIR = os.getenv('DATA_DIR', DATA_DIR)
+IPC_DIR = os.getenv('IPC_DIR', '.ipc')
 
 # We'll need to access the evt and imager folders only.
-EVTDIR = f"{DATA_DIR}/{EVT_dir}"
-IMGDIR = f"{DATA_DIR}/{IMG_dir}"
+EVTDIR = f"{IPC_DIR}/{EVT_dir}"
+IMGDIR = f"{IPC_DIR}/{IMG_dir}"
 
 # Alexa skill ID for request verification
 ALEXA_SKILL_ID = os.getenv('ALEXA_SKILL_ID')

@@ -9,8 +9,8 @@ sys.path.append(os.path.abspath("."))
 
 from ui_common import *
 
-EVENT_DIR = f"{DATA_DIR}/{EVT_dir}"
-IMAGE_DIR = f"{DATA_DIR}/{IMG_dir}"
+EVENT_DIR = f"{IPC_DIR}/{IMG_dir}"
+IMAGE_DIR = f"{IPC_DIR}/{EVT_dir}"
 
 # System status state machine section
 def system_status_sm(key):

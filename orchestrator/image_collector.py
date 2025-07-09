@@ -22,9 +22,10 @@ DATA_DIR = ''
 if not os.path.exists('/.dockerenv'):
     load_dotenv('./.env')
 DATA_DIR = os.getenv('DATA_DIR', DATA_DIR)
+IPC_DIR = os.getenv('IPC_DIR', '.ipc')
 
 # We'll need the images and config folders.
-IMGDIR = f"{DATA_DIR}/{IMG_dir}"
+IMGDIR = f"{IPC_DIR}/{IMG_dir}"
 
 # Will also need some location where to keep the archive
 DATASET_DIR = f"{DATA_DIR}/dataset"
