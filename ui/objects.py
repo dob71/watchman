@@ -45,11 +45,19 @@ def get_default_services():
 def output_objects_json(objects_dict, model, new_version):
     objects = []
     for obj_id, obj_data in objects_dict.items():
+        active_services = []
+        for svc in obj_data['svcs'].values():
+            if svc.get('active', False):
+                svc_to_save = svc.copy()
+                if 'active' in svc_to_save:
+                    del svc_to_save['active']
+                active_services.append(svc_to_save)
+        
         objects.append({
             CFG_obj_id_key: obj_id,
             CFG_obj_names_key: [x.strip() for x in obj_data['names'].split(',')],
             CFG_obj_desc_key: obj_data['desc'],
-            CFG_obj_svcs_key: [svc for svc in obj_data['svcs'].values() if svc.get('active', False)]
+            CFG_obj_svcs_key: active_services
         })
 
     output = {
@@ -78,13 +86,13 @@ def read_objects_json():
                 default_services = get_default_services()
                 stored_services = {item[CFG_osvc_name_key]: item for item in obj[CFG_obj_svcs_key]}
                 
-                # Preserve all service parameters even when inactive
                 merged_services = {}
                 for svc_name, default_svc in default_services.items():
+                    is_active = svc_name in stored_services
                     merged_services[svc_name] = {
                         **default_svc,
                         **stored_services.get(svc_name, {}),
-                        'active': stored_services.get(svc_name, {}).get('active', False)
+                        'active': is_active
                     }
 
                 objects_dict[obj_id] = {
