@@ -259,7 +259,7 @@ def get_obj_svcs_dict(obj_id):
             CFG_osvc_pname_key: pname,
             CFG_osvc_def_off_key: def_off,
             CFG_osvc_skip_chan_key: [chan[0] for chan in selected_channels],
-            CFG_osvc_msgtpl_key: "",
+            CFG_osvc_msgtpl_key: "OBJNAME:[OBJNAME] CHANNEL:[CHANNEL] LOCATION:[LOCATION]",
             CFG_osvc_age_out_key: 0
         }
 

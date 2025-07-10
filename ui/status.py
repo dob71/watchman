@@ -9,9 +9,6 @@ sys.path.append(os.path.abspath("."))
 
 from ui_common import *
 
-EVENT_DIR = f"{IPC_DIR}/{IMG_dir}"
-IMAGE_DIR = f"{IPC_DIR}/{EVT_dir}"
-
 # System status state machine section
 def system_status_sm(key):
     st.header("System Status")
@@ -34,7 +31,7 @@ def system_status_sm(key):
             st.rerun()  # Rerun the app to refresh the page
 
     # Display channel's current image
-    image_path = f"{IMAGE_DIR}/{selected_channel}/{IMG_file_name}"
+    image_path = f"{IMGDIR}/{selected_channel}/{IMG_file_name}"
     try:
         with open(image_path, "rb") as img_file:
             img = Image.open(img_file)
@@ -46,13 +43,13 @@ def system_status_sm(key):
             img = Image.open(img_file)
             st.image(img, use_container_width=True)
         
-    image_off_path = f"{IMAGE_DIR}/{selected_channel}/{IMG_off_file_name}"
+    image_off_path = f"{IMGDIR}/{selected_channel}/{IMG_off_file_name}"
     if os.path.exists(image_off_path):
         st.markdown("Note: the channel with no services turned on is automaticaly disabled")
 
-    available_obj_dirs = [objdir for objdir in objects if os.path.exists(f"{EVENT_DIR}/{selected_channel}/{objdir}")]
+    available_obj_dirs = [objdir for objdir in objects if os.path.exists(f"{EVTDIR}/{selected_channel}/{objdir}")]
     for object in available_obj_dirs:
-        event_path = f"{EVENT_DIR}/{selected_channel}/{object}"
+        event_path = f"{EVTDIR}/{selected_channel}/{object}"
         try: obj_json = load_data(f"{event_path}/{EVT_obj_file_name}")
         except: continue
         obj_name = obj_json[EVT_obj_names_key][0]

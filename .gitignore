@@ -1,6 +1,7 @@
 .venv
 .env
 .data
+.ipc
 .vscode
 __pycache__
 .aider*
