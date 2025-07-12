@@ -264,10 +264,23 @@ def dataset_management_sm(key):
     st.text(f"Number of images in the working dataset: {num_images} (skip:{num_skip} no:{num_no} yes:{num_yes})\n" +
             f"Datasets in labeling queue: {queue_nums} (out of {MAX_QUEUE})")
 
-    # Add a button for adding the selected combination to the queue
-    if st.button("Add to queue"):
-        add_to_queue(selected_combination, queue_list)
-        st.rerun()
+    # Add buttons for adding to queue and deleting
+    col1, col2 = st.columns([8, 1])
+    with col1:
+        if st.button("Add to queue"):
+            add_to_queue(selected_combination, queue_list)
+            st.rerun()
+    with col2:
+        if st.button("Delete"):
+            try:
+                # Rename folder using same pattern as Move to TrainSet
+                timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+                del_name = f"{selected_combination}.del.0.{timestamp}"
+                os.rename(dataset_path, f"{DATASET_DIR}/{del_name}")
+                os.makedirs(dataset_path)
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error deleting dataset: {str(e)}")
 
     st.markdown("### **Browse captured images:**")
     image_browsing(selected_combination)
@@ -509,23 +522,34 @@ def dataset_labeling_sm(key):
         if f"{selected_combination}_dataset_selection" in st.session_state.keys():
             st.session_state["dataset_selection"] = st.session_state[f"{selected_combination}_dataset_selection"]
 
-        col1, col2 = st.columns([3, 1])  # Create two columns with a ratio of 3:1
+        col1, col2 = st.columns([3.5, 2])  # Modified column ratio to fit both buttons
         selected_dataset = col1.selectbox("dataset", label_visibility='collapsed', options=queue_list, key = "dataset_selection")
         dataset_dir = f"{DATASET_DIR}/{selected_dataset}"
-        if col2.button('Move to TrainSet'):
+        
+        # Create two sub-columns for the buttons
+        col2a, col2b = col2.columns([1.5,1])
+        
+        remove_dataset = False
+        if col2a.button('Move to TrainSet'):
             err = move_to_train_data_file(selected_dataset)
             if err is not None:
                 st.error(err)
             else:
-                try:
-                    name_split = selected_dataset.split('.')
-                    name_split.insert(1, 'del')
-                    del_name = '.'.join(name_split)
-                    os.rename(dataset_dir, f"{DATASET_DIR}/{del_name}")
-                except Exception as e:
-                    st.error(str(e))
-                else:
-                    st.rerun()
+                remove_dataset = True
+
+        if col2b.button('Delete'):
+            remove_dataset = True
+        
+        if remove_dataset:
+            try:
+                name_split = selected_dataset.split('.')
+                name_split.insert(1, 'del')
+                del_name = '.'.join(name_split)
+                os.rename(dataset_dir, f"{DATASET_DIR}/{del_name}")
+            except Exception as e:
+                st.error(str(e))
+            else:
+                st.rerun()
 
         col21, col22 = st.columns([1, 1])
         col21.toggle(label="Allow override", value=False, key='dataset_allow_overide')
@@ -582,4 +606,3 @@ def dataset_labeling_sm(key):
     if st.button("Back"):
         st.session_state.app_state = "init"
         st.rerun()
-

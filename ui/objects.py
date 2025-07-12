@@ -35,7 +35,7 @@ def get_default_services():
             CFG_osvc_name_key: CFG_dset_svc_name,
             CFG_osvc_pname_key: f"{DATA_DIR}/dataset",
             CFG_osvc_def_off_key: True,
-            CFG_osvc_msgtpl_key: "",
+            CFG_osvc_msgtpl_key: "[LOCATION]",
             CFG_osvc_age_out_key: 0,
             CFG_osvc_skip_chan_key: []
         }
@@ -259,7 +259,7 @@ def get_obj_svcs_dict(obj_id):
             CFG_osvc_pname_key: pname,
             CFG_osvc_def_off_key: def_off,
             CFG_osvc_skip_chan_key: [chan[0] for chan in selected_channels],
-            CFG_osvc_msgtpl_key: "OBJNAME:[OBJNAME] CHANNEL:[CHANNEL] LOCATION:[LOCATION]",
+            CFG_osvc_msgtpl_key: "[LOCATION]",
             CFG_osvc_age_out_key: 0
         }
 
