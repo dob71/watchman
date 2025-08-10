@@ -192,7 +192,6 @@ def configure_models_sm(key):
     if st.button(label='Save Model Configuration', type='primary'):
         # Prepare final config with version
         final_config = {
-            CFG_model_version_key: st.session_state.model_config.get(CFG_model_version_key, 1) + 1,
             CFG_obj_model_key: st.session_state.model_config[CFG_obj_model_key],
             CFG_lbl_model_key: st.session_state.model_config[CFG_lbl_model_key]
         }
@@ -201,6 +200,11 @@ def configure_models_sm(key):
         for key in st.session_state.model_config:
             if key not in final_config and key.startswith((CFG_obj_model_key, CFG_lbl_model_key)):
                 final_config[key] = st.session_state.model_config[key]
+
+        # Handle version bump
+        ver = st.session_state.model_config.get(CFG_model_version_key, 0) + 1
+        st.session_state.model_config[CFG_model_version_key] = ver
+        final_config[CFG_model_version_key] = ver
 
         # Save atomically
         tmp_path = f"{model_cfg_json_path}.tmp"
