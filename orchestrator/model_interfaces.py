@@ -4,6 +4,115 @@ import ollama
 import openai
 import time
 import os
+from google import genai
+from google.api_core.exceptions import ResourceExhausted
+
+# This interface is primarily for using in the UI auto-labeling of the collected images
+# for fine tuning. The UI pulls the API key from the .env file GOOGLE_API_KEY variable
+# if it is not in the config JSON.
+class GeminiGenericInterface:
+    def __init__(self, model_to_use='gemini-2.5-flash-lite', api_key='', api_base=None):
+        self.api_base = api_base
+        if model_to_use.startswith('models/'):
+            self.model_to_use = model_to_use
+        else:
+            self.model_to_use = f"models/{model_to_use}"
+        cur_api_key = api_key if api_key else os.getenv('GOOGLE_API_KEY')
+        self.client = genai.Client(api_key=cur_api_key)
+        
+        print(f"Using model: {self.model_to_use}")
+
+    def __del__(self):
+        print(f"Unloading model interface for: {self.model_to_use}")
+
+    @staticmethod
+    def model_name():
+        return "google-genai"
+
+    @staticmethod
+    def model_parameters():
+        return {
+            "model_to_use": 'gemini-2.5-flash-lite',
+            "api_key": '',
+        }
+
+    def gen_detect_prompt(self, obj_desc, image_desc):
+        prompt = (
+            f"Is there {obj_desc} absolutely certainly and clearly visible in this security camera image of {image_desc}? Answer strictly Yes or No."
+        )
+        return prompt
+
+    def gen_locate_prompt(self, obj_desc, image_desc):
+        prompt = (
+            f"Describe the location of {obj_desc} in this security camera image of {image_desc}. Use 10 words or less. Focus on position relative to other objects."
+        )
+        return prompt
+
+    def locate(self, image_data, obj_desc, image_desc, image_format='jpeg', do_location=True):
+        ret = False
+        msg = ""
+        
+        # Detection phase
+        for attempt in range(3):
+            try:
+                response = self.client.models.generate_content(
+                    model=self.model_to_use,
+                    contents=[
+                        {
+                            'role': 'user',
+                            'parts': [
+                                {'text': self.gen_detect_prompt(obj_desc, image_desc)},
+                                {
+                                    'inline_data': {
+                                        'mime_type': f'image/{image_format}',
+                                        'data': image_data
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                )
+                if 'yes' in response.text.lower():
+                    ret = True
+                    if not do_location:
+                        return ret, ""
+                    break
+                else:
+                    return False, ""
+            except ResourceExhausted as e:
+                print(f"Quota exceeded, retrying... ({attempt+1}/3)")
+                time.sleep(2 ** attempt)
+                continue
+            except Exception as e:
+                print(f"Gemini API error: {e}")
+                return ret, msg
+
+        # Location phase
+        if ret and do_location:
+            try:
+                response = self.client.models.generate_content(
+                    model=self.model_to_use,
+                    contents=[
+                        {
+                            'role': 'user',
+                            'parts': [
+                                {'text': self.gen_locate_prompt(obj_desc, image_desc)},
+                                {
+                                    'inline_data': {
+                                        'mime_type': f'image/{image_format}',
+                                        'data': image_data
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                )
+                msg = response.text.strip('. \n\t').lower()
+            except Exception as e:
+                print(f"Error getting location: {e}")
+                msg = ""
+
+        return ret, msg
 
 # This interface is primarily for using in the UI auto-labeling of the collected images
 # for fine tuning. The UI pulls the OpenAI API key from the .env file OPENAI_API_KEY variable
@@ -34,13 +143,13 @@ class OpenAiGenericInterface:
 
     def gen_detect_prompt(self, obj_desc, image_desc):
         prompt = (
-            f"Is there {obj_desc} in this image of the {image_desc}? Answer strictly Yes or No."
+            f"Is there {obj_desc} clearly visible in this security camera image of {image_desc}? Answer strictly Yes or No."
         )
         return prompt
 
     def gen_locate_prompt(self, obj_desc, image_desc):
         prompt = (
-            f"In one sentence describe the location of {obj_desc} in this image of the {image_desc}."
+            f"Describe the location of {obj_desc} in this security camera image of {image_desc}. Use 10 words or less. Focus on position relative to other objects."
         )
         return prompt
 
@@ -78,7 +187,7 @@ class OpenAiGenericInterface:
                     time.sleep(retry_after)
                     continue
                 else:
-                    print(f"Exception querying VLLM {self.model_to_use} in detection phase: {e}")
+                    print(f"OpenAI {self.model_to_use} query error in the detection phase: {e}")
                     return ret, msg
 
         ret = True
@@ -113,7 +222,7 @@ class OpenAiGenericInterface:
                     time.sleep(retry_after)
                     continue
                 else:
-                    print(f"Exception querying VLLM {self.model_to_use} in location phase: {e}")
+                    print(f"OpenAI {self.model_to_use} query error in location phase: {e}")
                     break  # Non-rate-limit error, exit retry loop
 
         return ret, msg
@@ -328,4 +437,5 @@ MODELS = {
     OllamaLlama32Interface.model_name(): OllamaLlama32Interface,
     VLLMLlama32Interface.model_name(): VLLMLlama32Interface,
     OpenAiGenericInterface.model_name(): OpenAiGenericInterface,
+    GeminiGenericInterface.model_name(): GeminiGenericInterface,
 }

@@ -434,7 +434,7 @@ def label_image(model_interface, image_path, skip_if_correct, do_location):
         except: print("invalid image data.json, error marking to skip")
         return
     img_data = base64.b64encode(Path(image_pname).read_bytes()).decode()
-    res, msg = model_interface.locate(img_data, o_desc, c_name, do_location)
+    res, msg = model_interface.locate(img_data, o_desc, c_name, do_location=do_location)
     # if msg is None then something did work in the model interface, giving up
     if msg is None:
         print(f"ignoring, no response from the model")
