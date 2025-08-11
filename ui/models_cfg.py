@@ -75,9 +75,16 @@ def configure_models_sm(key):
     # Callbacks to update session state when selections change
     def update_obj_model_selection():
         st.session_state.current_obj_model_select = st.session_state.obj_model_select
-        # Update parameters immediately when selection changes
         new_obj_if = st.session_state.obj_model_select
         defaults = MODELS[new_obj_if].model_parameters()
+        
+        # Remove parameters not present in new model's defaults
+        for param in MODEL_KEY_MAP['object']:
+            cfg_key = MODEL_KEY_MAP['object'][param]
+            if param not in defaults and cfg_key in st.session_state.model_config:
+                del st.session_state.model_config[cfg_key]
+        
+        # Update with new model's defaults
         for param, value in defaults.items():
             if param in MODEL_KEY_MAP['object']:
                 cfg_key = MODEL_KEY_MAP['object'][param]
@@ -86,9 +93,16 @@ def configure_models_sm(key):
 
     def update_lbl_model_selection():
         st.session_state.current_lbl_model_select = st.session_state.lbl_model_select
-        # Update parameters immediately when selection changes
         new_lbl_if = st.session_state.lbl_model_select
         defaults = MODELS[new_lbl_if].model_parameters()
+        
+        # Remove parameters not present in new model's defaults
+        for param in MODEL_KEY_MAP['label']:
+            cfg_key = MODEL_KEY_MAP['label'][param]
+            if param not in defaults and cfg_key in st.session_state.model_config:
+                del st.session_state.model_config[cfg_key]
+        
+        # Update with new model's defaults
         for param, value in defaults.items():
             if param in MODEL_KEY_MAP['label']:
                 cfg_key = MODEL_KEY_MAP['label'][param]
