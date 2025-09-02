@@ -57,10 +57,49 @@ def prev_image(image_dirs, image_index, count=1):
     else: image_index = image_dirs[-1]
     return image_index
 
+def find_image_by_label(dataset_dir, image_dirs, current_index, direction, label):
+    try:
+        start_pos = image_dirs.index(current_index)
+    except ValueError:
+        return current_index
+    num_images = len(image_dirs)
+
+    for i in range(1, num_images):
+        check_pos = (start_pos + i * direction + num_images) % num_images
+        check_index = image_dirs[check_pos]
+
+        image_path = f"{dataset_dir}/{check_index}"
+        is_skip = os.path.exists(f"{image_path}/skip")
+        is_no = os.path.exists(f"{image_path}/no") and not is_skip
+        is_yes = not is_skip and not is_no
+
+        if label == 'skip' and is_skip:
+            return check_index
+        elif label == 'no' and is_no:
+            return check_index
+        elif label == 'yes' and is_yes:
+            return check_index
+
+    return current_index
+
 def image_browsing(subpath, start_index=0):
     dataset_dir = f"{DATASET_DIR}/{subpath}"
     if not os.path.exists(dataset_dir):
         return
+
+    # Make keys for session state static
+    editing_state_key = 'editing_location'
+    text_state_key = 'location_text'
+    subpath_state_key = 'current_subpath'
+
+    # Reset editing state if the dataset (subpath) changes
+    if subpath_state_key not in st.session_state or st.session_state[subpath_state_key] != subpath:
+        st.session_state[subpath_state_key] = subpath
+        st.session_state[editing_state_key] = False
+
+    if editing_state_key not in st.session_state:
+        st.session_state[editing_state_key] = False
+    editing_location = st.session_state[editing_state_key]
 
     # Make a list of images under the folder
     image_dirs = [int(folder) for folder in os.listdir(dataset_dir) if folder.isdigit()]
@@ -81,18 +120,18 @@ def image_browsing(subpath, start_index=0):
     no_file_path = f"{dataset_dir}/{image_index}/no"
     skip_file_path = f"{dataset_dir}/{image_index}/skip"
 
-    # Navigation buttons
+    # Top navigation buttons
     updated_index = None
-    btn1, btn11, btn2, btn3, btn4, btn5, btn51 = st.columns(7)
+    btn1, btn11, btn2, btn3, btn4, btn51, btn5 = st.columns(7)
 
     with btn1:
-        if button("Prev", "ArrowLeft", lambda: None):
+        if button("Prev", "ArrowLeft" if not editing_location else "", lambda: None, disabled=editing_location):
             image_index = prev_image(image_dirs, image_index)
     with btn11:
-        if button("-20", "Ctrl+ArrowLeft", lambda: None):
+        if button("-20", "Ctrl+ArrowLeft" if not editing_location else "", lambda: None, disabled=editing_location):
             image_index = prev_image(image_dirs, image_index, 20)
     with btn2:
-        if button("Yes", "a", lambda: None, hint=True):
+        if button("Yes", "a" if not editing_location else "", lambda: None, hint=True, disabled=editing_location):
             try:
                 if os.path.exists(no_file_path):
                     os.unlink(no_file_path)
@@ -102,16 +141,15 @@ def image_browsing(subpath, start_index=0):
             except:
                 pass
     with btn3:
-        if button("Skip", "s", lambda: None, hint=True):
+        if button("Skip", "s" if not editing_location else "", lambda: None, hint=True, disabled=editing_location):
             try:
-                if os.path.exists(no_file_path):
-                    os.unlink(no_file_path)
+                # no removal of other labels when doing skip (skip always takes precedence, so the real label can stay behind)
                 open(skip_file_path, 'w').close()
                 updated_index = image_index
             except:
                 pass
     with btn4:
-        if button("No", "d", lambda: None, hint=True):
+        if button("No", "d" if not editing_location else "", lambda: None, hint=True, disabled=editing_location):
             try:
                 if os.path.exists(skip_file_path):
                     os.unlink(skip_file_path)
@@ -120,10 +158,10 @@ def image_browsing(subpath, start_index=0):
             except:
                 pass
     with btn5:
-        if button("Next", "ArrowRight", lambda: None):
+        if button("Next", "ArrowRight" if not editing_location else "", lambda: None, disabled=editing_location):
             image_index = next_image(image_dirs, image_index)
     with btn51:
-        if button("+20", "Ctrl+ArrowRight", lambda: None):
+        if button("+20", "Ctrl+ArrowRight" if not editing_location else "", lambda: None, disabled=editing_location):
             image_index = next_image(image_dirs, image_index, 20)
 
     st.session_state.image_index[dataset_key] = image_index
@@ -151,6 +189,103 @@ def image_browsing(subpath, start_index=0):
         match_result = "No"
     else:
         match_result = "Yes"
+
+    # Show location input only for "Yes" images
+    if match_result == "Yes" or match_result == "Skip":
+        location_file_path = f"{dataset_dir}/{image_index}/location"
+        
+        # Load content for display
+        location_content = ""
+        if os.path.exists(location_file_path):
+            try:
+                with open(location_file_path, 'r') as f:
+                    location_content = f.read()
+            except:
+                pass
+
+        # If we are not editing, the session state for the input should be synced with the file content.
+        # This handles navigation to a new image.
+        if not editing_location:
+            st.session_state[text_state_key] = location_content
+
+        loc_col, btn_col1, btn_col2 = st.columns([8, 1.2, 1])
+
+        with loc_col:
+            st.text_input(
+                "Location:", 
+                key=text_state_key,
+                label_visibility='collapsed', 
+                disabled=not editing_location
+            )
+
+        with btn_col1:
+            if not editing_location:
+                if st.button("Edit", key="edit_btn"):
+                    st.session_state[editing_state_key] = True
+                    st.rerun()
+            else:
+                if st.button("Cancel", key="cancel_btn"):
+                    # Revert text from original file content by re-reading it
+                    try:
+                        with open(location_file_path, 'r') as f:
+                            location_content = f.read()
+                        st.session_state[text_state_key] = location_content
+                    except FileNotFoundError:
+                        st.session_state[text_state_key] = "" # File might not exist yet
+                    except Exception:
+                        st.error("Error reading location file")
+                    st.session_state[editing_state_key] = False
+                    st.rerun()
+        
+        with btn_col2:
+            if st.button("Save", key="save_btn", disabled=not editing_location):
+                try:
+                    with open(location_file_path, 'w') as f:
+                        f.write(st.session_state[text_state_key])
+                except:
+                    st.error("Error saving location description")
+                st.session_state[editing_state_key] = False
+                st.rerun()
+
+    # Bottom navigation buttons
+    pbtn1, pbtn2, pbtn3, nbtn1, nbtn2, nbtn3 = st.columns(6)
+    with pbtn1:
+        if button("<Yes", "z" if not editing_location else "", lambda: None, hint=True, disabled=editing_location):
+            new_index = find_image_by_label(dataset_dir, image_dirs, image_index, -1, 'yes')
+            if new_index != image_index:
+                st.session_state.image_index[dataset_key] = new_index
+                st.rerun()
+    with pbtn2:
+        if button("<Skip", "x" if not editing_location else "", lambda: None, hint=True, disabled=editing_location):
+            new_index = find_image_by_label(dataset_dir, image_dirs, image_index, -1, 'skip')
+            if new_index != image_index:
+                st.session_state.image_index[dataset_key] = new_index
+                st.rerun()
+    with pbtn3:
+        if button("<No", "c" if not editing_location else "", lambda: None, hint=True, disabled=editing_location):
+            new_index = find_image_by_label(dataset_dir, image_dirs, image_index, -1, 'no')
+            if new_index != image_index:
+                st.session_state.image_index[dataset_key] = new_index
+                st.rerun()
+    with nbtn1:
+        if button("Yes>", "q" if not editing_location else "", lambda: None, hint=True, disabled=editing_location):
+            new_index = find_image_by_label(dataset_dir, image_dirs, image_index, 1, 'yes')
+            if new_index != image_index:
+                st.session_state.image_index[dataset_key] = new_index
+                st.rerun()
+    with nbtn2:
+        if button("Skip>", "w" if not editing_location else "", lambda: None, hint=True, disabled=editing_location):
+            new_index = find_image_by_label(dataset_dir, image_dirs, image_index, 1, 'skip')
+            if new_index != image_index:
+                st.session_state.image_index[dataset_key] = new_index
+                st.rerun()
+    with nbtn3:
+        if button("No>", "e" if not editing_location else "", lambda: None, hint=True, disabled=editing_location):
+            new_index = find_image_by_label(dataset_dir, image_dirs, image_index, 1, 'no')
+            if new_index != image_index:
+                st.session_state.image_index[dataset_key] = new_index
+                st.rerun()
+
     col1, col2 = st.columns(2)
     col1.write(f"Image: **{image_index}**")
     col2.write(f"Match: **{match_result}**")
@@ -317,11 +452,11 @@ def get_object_description(objid):
     return obj_desc
 
 # Function for adding a row to the training dataset dataframe
-def add_train_data_row(dataframe, dir, timestamp, c_desc, o_desc, location, res):
+def add_train_data_row(dir, timestamp, c_desc, o_desc, location, res):
     try:
         image_pname = f"{dir}/{IMG_file_name}"
         img_data = base64.b64encode(Path(image_pname).read_bytes()).decode()
-        dataframe.loc[len(dataframe)] = {
+        return {
             "ver": DTS_version,
             "tstamp": timestamp,
             "img": img_data,
@@ -332,7 +467,7 @@ def add_train_data_row(dataframe, dir, timestamp, c_desc, o_desc, location, res)
         }
     except Exception as e:
         print(f"Skipping {image_pname} due to error: {e}")
-        return
+        return None
 
 def move_to_train_data_file(selected_dataset):
     try:
@@ -388,18 +523,39 @@ def move_to_train_data_file(selected_dataset):
 
     # Append the information from the dataset
     subdirs = [f.path for f in os.scandir(dataset_dir) if f.is_dir()]
+    new_rows = []   # list to collect the rows for the current dataset
     for s in subdirs:
         if os.path.exists(f"{s}/skip"):
             continue
         if os.path.exists(f"{s}/no"):
-            add_train_data_row(df, f"{s}", timestamp, c_desc, o_desc, None, "No")
+            row = add_train_data_row(f"{s}", timestamp, c_desc, o_desc, None, "No")
+            if row is not None:
+                new_rows.append(row)
         else:
             location = None
             try:
                 with open(f"{s}/location", "r") as location_file:
                     location = location_file.read()
             except: pass # no location description
-            add_train_data_row(df, f"{s}", timestamp, c_desc, o_desc, location, "Yes")
+            row = add_train_data_row(f"{s}", timestamp, c_desc, o_desc, location, "Yes")
+            if row is not None:
+                new_rows.append(row)
+
+    # Append new rows to main DataFrame
+    if new_rows:
+        df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
+
+    # Write the current dataset to a separate file
+    if new_rows:
+        df_current = pd.DataFrame(new_rows)
+        # Create the filename: same directory as pcl_train_data_path, but with the timestamp prefix
+        base_name = os.path.basename(pcl_train_data_path)
+        current_file = os.path.join(os.path.dirname(pcl_train_data_path), f"{timestamp}-{base_name}")
+        try:
+            df_current.to_pickle(current_file)
+        except Exception as e:
+            # We don't want to fail the whole function because of this, but log the error
+            print(f"Error saving current dataset to {current_file}: {str(e)}")
 
     try:
         if os.path.exists(pcl_train_data_path):
@@ -413,16 +569,35 @@ def move_to_train_data_file(selected_dataset):
 # Automatically label an image, image_path - image folder path
 # skip_if_correct - mark the image to be skipped if the label is already correct
 # do_location - create file "location" with the object location descripton for the positive samples
-def label_image(model_interface, image_path, skip_if_correct, do_location):
+def label_image(model_interface, image_path, skip_if_correct, do_location, label_skipped, pass_labeled, stats):
     print(f"Labeling image: {image_path}...", end="")
+    result = None
     image_pname = f"{image_path}/image.jpg"
     data_json_path = f"{image_path}/data.json"
     location_file_path = f"{image_path}/location"
+    auto_labeled_file_path = f"{image_path}/auto_labeled"
     skip_file_path = f"{image_path}/skip"
     no_file_path = f"{image_path}/no"
+    
+    if os.path.exists(auto_labeled_file_path):
+        if pass_labeled:
+            print(f"ignoring, already auto-labeled")
+            stats['skipped'] += 1
+            return
+        else:
+            try:
+                os.unlink(auto_labeled_file_path)
+            except:
+                print("error removing auto-labeled marker")
+
     if os.path.exists(skip_file_path):
-        print(f"ignoring, already marked as skip")
-        return
+        if label_skipped:
+            try: os.unlink(skip_file_path)
+            except: print("cannot clear skip status"); stats['skipped'] += 1; return
+        else:
+            print(f"ignoring, already marked as skip")
+            stats['skipped'] += 1
+            return
     try: 
         with open(data_json_path, "r") as file:
             data = json.load(file)
@@ -432,13 +607,20 @@ def label_image(model_interface, image_path, skip_if_correct, do_location):
         # the old style data.json did not have o_desc, will not support those datasets
         try: open(skip_file_path, 'a').close(); print(f"invalid image data.json, skipping")
         except: print("invalid image data.json, error marking to skip")
+        stats['skipped'] += 1
         return
     img_data = base64.b64encode(Path(image_pname).read_bytes()).decode()
     res, msg = model_interface.locate(img_data, o_desc, c_name, do_location=do_location)
     # if msg is None then something did work in the model interface, giving up
     if msg is None:
         print(f"ignoring, no response from the model")
+        stats['no_response'] += 1
         return
+    # Update stats based on model response
+    if res:
+        stats['positive'] += 1
+    else:
+        stats['negative'] += 1
     # record the location if requested and the model response msg is not empty
     if do_location and len(msg) > 0:
         try:
@@ -448,17 +630,21 @@ def label_image(model_interface, image_path, skip_if_correct, do_location):
     # positive, but the current result is negative
     if res and os.path.exists(no_file_path):
         try: os.unlink(no_file_path); print("corrected to positive")
-        except: print("error correcting to positive")
+        except: print("error correcting to positive"); result = 'error'
     # negative, but the current result is positive
     elif not res and not os.path.exists(no_file_path):
         try: open(no_file_path, 'a').close(); print("corrected to negative")
-        except: print("error correcting to negative")
+        except: print("error correcting to negative"); result = 'error'
     # current and auto-labeling results match
     elif skip_if_correct:
-        try: open(skip_file_path, 'a').close(); print("correct, marked to skip")
-        except: print("correct, error marking to skip")
+        try: open(skip_file_path, 'a').close(); print("correct, marked to skip"); result = 'skipped'
+        except: print("correct, error marking to skip"); result = 'skipped'
     else:
         print("correct")
+        result = 'skipped' if os.path.exists(skip_file_path) else 'nochange'
+    if result != "error":
+        try: open(auto_labeled_file_path, 'a').close()
+        except: pass
 
 # Create a UI section for auto-labeling with a progress bar
 # dataset_dir - directory with image subdirs (the names are integers)
@@ -466,27 +652,115 @@ def label_image(model_interface, image_path, skip_if_correct, do_location):
 def auto_labeling(dataset_dir, num_images):
     skip_if_correct = st.session_state['auto_label_skip_if_correct']
     do_location = st.session_state['auto_label_do_location']
-    with st.spinner("Labeling images..."):
-        # Loade model config
-        model_config = load_data(model_cfg_json_path) if os.path.exists(model_cfg_json_path) else {}
-        # and set up the interface to use (used auto-labeling)
+    label_skipped = st.session_state['auto_label_label_skipped']
+    pass_labeled = st.session_state['auto_label_pass_labeled']
+    stats = {
+        'skipped': 0, 
+        'positive': 0,
+        'negative': 0,
+        'no_response': 0
+    }
+    # Reset stats before starting new labeling session
+    stats.update({k:0 for k in stats})
+    st.session_state.auto_labeled_max_index = 0
+    try:
+        with st.spinner("Labeling images..."):
+            # Load model config
+            model_config = load_data(model_cfg_json_path) if os.path.exists(model_cfg_json_path) else {}
+            # and set up the interface to use (used auto-labeling)
         model_interface = MODELS[model_config.get(CFG_lbl_model_key, DTS_label_model_if)](
             model_to_use=model_config.get(CFG_lbl_model_name_key, DTS_label_model), 
             api_base=model_config.get(CFG_lbl_model_url_key, DTS_model_url), 
             api_key=model_config.get(CFG_lbl_model_tkn_key, '')
         )
         progress_bar = st.progress(0)
-        for i, folder in enumerate(os.listdir(dataset_dir)):
-            if not folder.isdigit(): continue
+        stats_placeholder = st.empty()
+        image_folders = [f for f in os.listdir(dataset_dir) if f.isdigit()]
+        image_folders.sort(key=int)
+        for i, folder in enumerate(image_folders):
             image_dir = os.path.join(dataset_dir, folder)
-            label_image(model_interface, image_dir, skip_if_correct, do_location)
+            if st.session_state.labeling_state != "in_progress":
+                st.session_state.labeling_state = "cancelled"
+                st.session_state.labeling_stats = stats
+                break
+            label_image(model_interface, image_dir, skip_if_correct, do_location, label_skipped, pass_labeled, stats)
+            st.session_state.auto_labeled_max_index = int(folder)
+            st.session_state.labeling_stats = stats
             progress_bar.progress((i + 1) / num_images)
-    st.success("All images have been labeled!")
+                    
+            # Update stats display
+            stats = st.session_state.labeling_stats
+            stats_text = f"Positive: {stats['positive']} | Negative: {stats['negative']} | Skipped: {stats['skipped']} | No response: {stats['no_response']} | Total: {sum(stats.values())}"
+            stats_placeholder.text(stats_text)
+                    
+            time.sleep(0.1)  # Allow cancel button to be processed
+    except Exception as e:
+        st.session_state.labeling_state = "failed"
+        st.session_state.labeling_stats = stats
+        print(f"Labeling failed: {str(e)}")
+    else:
+        if st.session_state.labeling_state == "in_progress":
+            st.session_state.labeling_state = "completed_successfully"
+    finally:
+        if st.session_state.labeling_state == "in_progress":
+            st.session_state.labeling_state = "not_run"
+    st.rerun()
+
+def rename_dataset_directory(selected_dataset, new_index):
+    if new_index is None:
+        return None
+    try:
+        old_dir_path = os.path.join(DATASET_DIR, selected_dataset)
+        
+        parts = selected_dataset.split('.')
+        chan_obj_part = parts[0]
+        n_part = parts[1]
+        original_last_labeled = int(parts[2])
+        timestamp_part = parts[3]
+        
+        if new_index > original_last_labeled:
+            new_dataset_name = f"{chan_obj_part}.{n_part}.{new_index}.{timestamp_part}"
+            new_dir_path = os.path.join(DATASET_DIR, new_dataset_name)
+            os.rename(old_dir_path, new_dir_path)
+            return new_dataset_name
+        return None
+    except Exception as e:
+        print(f"Error updating dataset directory: {e}")
+        return None
 
 # Dataset labeling state machine section
 def dataset_labeling_sm(key):
     hide_shortcut_iframe()
     st.header("Labeling Collected Data")
+    is_labeling = st.session_state.get('labeling_state') == "in_progress"
+
+    # Callbacks to sync widget state to logical state
+    def sync_dataset_allow_overide():
+        st.session_state.dataset_allow_overide = st.session_state.dataset_allow_overide_widget
+    def sync_dataset_allow_no_label():
+        st.session_state.dataset_allow_no_label = st.session_state.dataset_allow_no_label_widget
+    def sync_auto_label_skip_if_correct():
+        st.session_state.auto_label_skip_if_correct = st.session_state.auto_label_skip_if_correct_widget
+    def sync_auto_label_pass_labeled():
+        st.session_state.auto_label_pass_labeled = st.session_state.auto_label_pass_labeled_widget
+    def sync_auto_label_do_location():
+        st.session_state.auto_label_do_location = st.session_state.auto_label_do_location_widget
+    def sync_auto_label_label_skipped():
+        st.session_state.auto_label_label_skipped = st.session_state.auto_label_label_skipped_widget
+
+    # Initialize session state for auto-labeling toggles if they don't exist
+    if 'auto_label_skip_if_correct' not in st.session_state:
+        st.session_state.auto_label_skip_if_correct = True
+    if 'auto_label_pass_labeled' not in st.session_state:
+        st.session_state.auto_label_pass_labeled = True
+    if 'auto_label_do_location' not in st.session_state:
+        st.session_state.auto_label_do_location = True
+    if 'auto_label_label_skipped' not in st.session_state:
+        st.session_state.auto_label_label_skipped = False
+    if 'dataset_allow_overide' not in st.session_state:
+        st.session_state.dataset_allow_overide = False
+    if 'dataset_allow_no_label' not in st.session_state:
+        st.session_state.dataset_allow_no_label = False
 
     # Load data from JSON files
     sources_data = load_data(imgsrc_cfg_json_path)
@@ -503,7 +777,8 @@ def dataset_labeling_sm(key):
     st.markdown("### **Select a channel/object combination:**")
     selected_combination = st.selectbox("channel/object/2", label_visibility='collapsed',
                                         options=[f"{comb[0]}/{comb[1]}" for comb in valid_combinations],
-                                        format_func=lambda co: f"{chan_id_to_name(sources_data, co.split('/')[0])}/{obj_id_to_name(objects_data, co.split('/')[1])}")
+                                        format_func=lambda co: f"{chan_id_to_name(sources_data, co.split('/')[0])}/{obj_id_to_name(objects_data, co.split('/')[1])}",
+                                        disabled=is_labeling)
 
     # Let user select one of the datasets queued for labeling here (for the selected channel/object combination)
     datasets_queue_path = f"{DATASET_DIR}/{selected_combination}"
@@ -519,25 +794,36 @@ def dataset_labeling_sm(key):
     if len(queue_list) > 0:
         # Select box to display datasets in the queue
         st.markdown("### **and a dataset from the training queue:**")
-        if f"{selected_combination}_dataset_selection" in st.session_state.keys():
-            st.session_state["dataset_selection"] = st.session_state[f"{selected_combination}_dataset_selection"]
+        default_index = 0
+        if f"{selected_combination}_dataset_selection" in st.session_state:
+            default_selection = st.session_state[f"{selected_combination}_dataset_selection"]
+            if default_selection in queue_list:
+                default_index = queue_list.index(default_selection)
 
         col1, col2 = st.columns([3.5, 2])  # Modified column ratio to fit both buttons
-        selected_dataset = col1.selectbox("dataset", label_visibility='collapsed', options=queue_list, key = "dataset_selection")
+        selected_dataset = col1.selectbox("dataset", label_visibility='collapsed', options=queue_list, key = "dataset_selection", index=default_index, disabled=is_labeling)
+        
+        # Initialize/reset labeling state if selection changes
+        prev_selection = st.session_state.get("prev_dataset_selection")
+        current_selection = (selected_combination, selected_dataset)
+        if prev_selection != current_selection:
+            st.session_state.labeling_state = "not_run"
+            st.session_state.prev_dataset_selection = current_selection
+            st.session_state.processed_count = 0
         dataset_dir = f"{DATASET_DIR}/{selected_dataset}"
         
         # Create two sub-columns for the buttons
         col2a, col2b = col2.columns([1.5,1])
         
         remove_dataset = False
-        if col2a.button('Move to TrainSet'):
+        if col2a.button('Move to TrainSet', disabled=is_labeling):
             err = move_to_train_data_file(selected_dataset)
             if err is not None:
                 st.error(err)
             else:
                 remove_dataset = True
 
-        if col2b.button('Delete'):
+        if col2b.button('Delete', disabled=is_labeling):
             remove_dataset = True
         
         if remove_dataset:
@@ -552,46 +838,112 @@ def dataset_labeling_sm(key):
                 st.rerun()
 
         col21, col22 = st.columns([1, 1])
-        col21.toggle(label="Allow override", value=False, key='dataset_allow_overide')
-        col22.toggle(label="Allow incomplete labeling", value=False, key='dataset_allow_no_label')
+        col21.toggle(
+            label="Allow override",
+            value=st.session_state.dataset_allow_overide,
+            key='dataset_allow_overide_widget',
+            on_change=sync_dataset_allow_overide,
+            disabled=is_labeling
+        )
+        col22.toggle(
+            label="Allow incomplete labeling",
+            value=st.session_state.dataset_allow_no_label,
+            key='dataset_allow_no_label_widget',
+            on_change=sync_dataset_allow_no_label,
+            disabled=is_labeling
+        )
 
         num_images, num_skip, num_no, num_yes = count_images(dataset_dir)
         st.text(f"Number of images in the selected dataset: {num_images} (skip:{num_skip} no:{num_no} yes:{num_yes})")
 
         # Add the "Label Automatically" user elements
-        col31, col32, col33 = st.columns(3)
-        auto_label_button = col31.button("Label Automatically", key='auto_label_button')
-        col32.toggle("Skip if correct", value=True, key='auto_label_skip_if_correct')
-        col33.toggle("Describe location", value=True, key='auto_label_do_location')
-   
-        if auto_label_button:
+        col31, col32, col33, col34, col35 = st.columns([4,3,3,2.5,3])
+        button_text = {
+            "not_run": "Label Automatically",
+            "in_progress": "Cancel Labeling",
+            "completed_successfully": "Restart Labeling",
+            "cancelled": "Restart Labeling",
+            "failed": "Retry Labeling"
+        }.get(st.session_state.get('labeling_state', 'not_run'), "Label Automatically")
+        
+        if col31.button(button_text, key='auto_label_button'):
+            if st.session_state.get('labeling_state') == "in_progress":
+                st.session_state.labeling_state = "cancelled"
+            else:
+                st.session_state.labeling_state = "in_progress"
+                st.session_state.processed_count = 0
+            st.rerun()
+            
+        col32.toggle(
+            "Skip correct",
+            value=st.session_state.auto_label_skip_if_correct,
+            key='auto_label_skip_if_correct_widget',
+            on_change=sync_auto_label_skip_if_correct,
+            disabled=is_labeling
+        )
+        col33.toggle(
+            "Pass labeled",
+            value=st.session_state.auto_label_pass_labeled,
+            key='auto_label_pass_labeled_widget',
+            on_change=sync_auto_label_pass_labeled,
+            disabled=is_labeling
+        )
+        col34.toggle(
+            "Location",
+            value=st.session_state.auto_label_do_location,
+            key='auto_label_do_location_widget',
+            on_change=sync_auto_label_do_location,
+            disabled=is_labeling
+        )
+        col35.toggle(
+            "Do skipped",
+            value=st.session_state.auto_label_label_skipped,
+            key='auto_label_label_skipped_widget',
+            on_change=sync_auto_label_label_skipped,
+            disabled=is_labeling
+        )
+        
+        if is_labeling:
             auto_labeling(dataset_dir, num_images)
 
-        try:
-            chan_obj = selected_dataset.split('.')[0]
-            dataset_index = int(selected_dataset.split('.')[1])
+        # Show status messages
+        if st.session_state.get('labeling_state') in ("completed_successfully", "cancelled", "failed"):
+            stats = st.session_state.labeling_stats
+            message = f"{stats['positive']} positive, {stats['negative']} negative, {stats['skipped']} skipped, {stats['no_response']} no response"
+            
+            if st.session_state.labeling_state == "completed_successfully":
+                st.success(f"Labeling completed: {message}")
+            elif st.session_state.labeling_state == "cancelled":
+                st.info(f"Labeling cancelled: {message}")
+            elif st.session_state.labeling_state == "failed":
+                st.error(f"Labeling failed: {message}")
 
-            last_labeled = int(selected_dataset.split('.')[2])
-            timestamp = selected_dataset.split('.')[3]
+            if st.session_state.labeling_state in ("completed_successfully", "cancelled", "failed") and \
+               'auto_labeled_max_index' in st.session_state and st.session_state.auto_labeled_max_index > 0:
+                new_name = rename_dataset_directory(selected_dataset, st.session_state.auto_labeled_max_index)
+                del st.session_state.auto_labeled_max_index
+                if new_name:
+                    chan_obj = selected_dataset.split('.')[0]
+                    st.session_state[f"{chan_obj}_dataset_selection"] = new_name
+                    st.session_state.prev_dataset_selection = (chan_obj, new_name)
+                    st.rerun()
 
-            updated_index = image_browsing(selected_dataset, start_index = last_labeled)
-            if updated_index is not None and updated_index > last_labeled:
-                new_selection = f"{chan_obj}.{dataset_index}.{updated_index}.{timestamp}"
-                new_dir_name = f"{DATASET_DIR}/{new_selection}"
-                try:
-                    os.rename(dataset_dir, new_dir_name)
-                    last_labeled = updated_index
-                    dataset_dir = new_dir_name
-                    st.session_state[f"{chan_obj}_dataset_selection"] = f"{new_selection}"
-                except Exception as e:
-                    print("Exception: ", str(e))
-                    pass
-            else:
-                if f"{chan_obj}_dataset_selection" in st.session_state.keys():
-                    del(st.session_state[f"{chan_obj}_dataset_selection"])
-        except Exception as e:
-            print(f"Invalid dataset queue list item {selected_dataset}, expected channel/object.N.M.TIMESTAMP")
-            print("Exception: ", str(e))
+        if not is_labeling:
+            try:
+                last_labeled = int(selected_dataset.split('.')[2])
+                updated_index = image_browsing(selected_dataset, start_index = last_labeled)
+                new_name = rename_dataset_directory(selected_dataset, updated_index)
+                if new_name:
+                    chan_obj = selected_dataset.split('.')[0]
+                    st.session_state[f"{chan_obj}_dataset_selection"] = new_name
+                    st.session_state.prev_dataset_selection = (chan_obj, new_name)
+                    st.rerun()
+
+            except Exception as e:
+                print(f"Invalid dataset queue list item {selected_dataset}, expected channel/object.N.M.TIMESTAMP")
+                print("Exception: ", str(e))
+        else:
+            st.info("Labeling in progress... Image browser is disabled.")
 
         st.markdown("<div style=\"font-family: monospace; font-size: 12px; white-space: pre;\">\n"
                     "The dataset folder naming pattern is <b>channel/object.N.M.TIMESTAMP</b>, where:\n" +
@@ -603,6 +955,6 @@ def dataset_labeling_sm(key):
                     "</div><div><br/></div>", unsafe_allow_html=True)
 
     # Add a "Back" button to go back to the start form
-    if st.button("Back"):
+    if st.button("Back", disabled=is_labeling):
         st.session_state.app_state = "init"
         st.rerun()
