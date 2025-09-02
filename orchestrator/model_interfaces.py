@@ -18,7 +18,7 @@ class GeminiGenericInterface:
         else:
             self.model_to_use = f"models/{model_to_use}"
         cur_api_key = api_key if api_key else os.getenv('GOOGLE_API_KEY')
-        self.client = genai.Client(api_key=cur_api_key)
+        self.client = genai.Client(api_key=cur_api_key, http_options={"timeout": 30000})
         
         print(f"Using model: {self.model_to_use}")
 
@@ -74,18 +74,14 @@ class GeminiGenericInterface:
                 )
                 if 'yes' in response.text.lower():
                     ret = True
-                    if not do_location:
-                        return ret, ""
                     break
-                else:
-                    return False, ""
             except ResourceExhausted as e:
                 print(f"Quota exceeded, retrying... ({attempt+1}/3)")
                 time.sleep(2 ** attempt)
                 continue
             except Exception as e:
                 print(f"Gemini API error: {e}")
-                return ret, msg
+                return ret, None
 
         # Location phase
         if ret and do_location:
@@ -175,8 +171,8 @@ class OpenAiGenericInterface:
                         }
                     ],
                 )
-                #print(f"Detection:\n-----------\n{rsp}\n------------\n")
-                if 'yes' not in rsp.choices[0].message.content.lower() or not do_location:
+                ret = True if 'yes' in rsp.choices[0].message.content.lower() else False
+                if not do_location or not ret:
                     msg = ""
                     return ret, msg
                 break  # Success, exit retry loop
@@ -190,7 +186,6 @@ class OpenAiGenericInterface:
                     print(f"OpenAI {self.model_to_use} query error in the detection phase: {e}")
                     return ret, msg
 
-        ret = True
         msg = ""
         prompt = self.gen_locate_prompt(obj_desc, image_desc)
         
@@ -305,14 +300,14 @@ class VLLMLlama32Interface:
                 max_completion_tokens=8,
                 stop='.',
             )
-            if 'yes' not in rsp.choices[0].message.content.lower() or not do_location:
+            ret = True if 'yes' in rsp.choices[0].message.content.lower() else False
+            if not do_location or not ret:
                 msg = ""
                 return ret, msg
         except Exception as e:
             print(f"Exception querying VLLM {self.model_to_use}: {e}")
             return ret, msg
 
-        ret = True
         msg = ""
         prompt = self.gen_locate_prompt(obj_desc, image_desc)
         try:
@@ -409,7 +404,8 @@ class OllamaLlama32Interface:
         if not rsp.done:
             return ret, msg
         msg = ""
-        if not "yes" in rsp.response.lower() or not do_location:
+        ret = True if "yes" in rsp.response.lower() else False
+        if not do_location or not ret:
             return ret, msg
         prompt = self.gen_locate_prompt(obj_desc, image_desc)
         rsp = self.client.generate(
