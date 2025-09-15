@@ -250,19 +250,19 @@ def image_browsing(subpath, start_index=0):
     # Bottom navigation buttons
     pbtn1, pbtn2, pbtn3, nbtn1, nbtn2, nbtn3 = st.columns(6)
     with pbtn1:
-        if button("<Yes", "z" if not editing_location else "", lambda: None, hint=True, disabled=editing_location):
+        if button("<Yes", "1" if not editing_location else "", lambda: None, hint=True, disabled=editing_location):
             new_index = find_image_by_label(dataset_dir, image_dirs, image_index, -1, 'yes')
             if new_index != image_index:
                 st.session_state.image_index[dataset_key] = new_index
                 st.rerun()
     with pbtn2:
-        if button("<Skip", "x" if not editing_location else "", lambda: None, hint=True, disabled=editing_location):
+        if button("<Skip", "2" if not editing_location else "", lambda: None, hint=True, disabled=editing_location):
             new_index = find_image_by_label(dataset_dir, image_dirs, image_index, -1, 'skip')
             if new_index != image_index:
                 st.session_state.image_index[dataset_key] = new_index
                 st.rerun()
     with pbtn3:
-        if button("<No", "c" if not editing_location else "", lambda: None, hint=True, disabled=editing_location):
+        if button("<No", "3" if not editing_location else "", lambda: None, hint=True, disabled=editing_location):
             new_index = find_image_by_label(dataset_dir, image_dirs, image_index, -1, 'no')
             if new_index != image_index:
                 st.session_state.image_index[dataset_key] = new_index
