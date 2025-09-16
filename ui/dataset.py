@@ -690,7 +690,7 @@ def auto_labeling(dataset_dir, num_images):
                     
             # Update stats display
             stats = st.session_state.labeling_stats
-            stats_text = f"Positive: {stats['positive']} | Negative: {stats['negative']} | Skipped: {stats['skipped']} | No response: {stats['no_response']} | Total: {sum(stats.values())}"
+            stats_text = f"Positive: {stats['positive']} | Negative: {stats['negative']} | Ignored: {stats['skipped']} | No response: {stats['no_response']} | Total: {sum(stats.values())}"
             stats_placeholder.text(stats_text)
                     
             time.sleep(0.1)  # Allow cancel button to be processed
@@ -854,10 +854,14 @@ def dataset_labeling_sm(key):
         )
 
         num_images, num_skip, num_no, num_yes = count_images(dataset_dir)
-        st.text(f"Number of images in the selected dataset: {num_images} (skip:{num_skip} no:{num_no} yes:{num_yes})")
+        text_to_display = f"Number of images in the selected dataset: {num_images} (skip:{num_skip} no:{num_no} yes:{num_yes})"
+        if is_labeling:
+            st.markdown(f"<span style='color:gray'>{text_to_display}</span>", unsafe_allow_html=True)
+        else:
+            st.text(text_to_display)
 
         # Add the "Label Automatically" user elements
-        col31, col32, col33, col34, col35 = st.columns([4,3,3,2.5,3])
+        col31, col32, col33, col34, col35 = st.columns([4,3.1,3.5,2.6,3])
         button_text = {
             "not_run": "Label Automatically",
             "in_progress": "Cancel Labeling",
@@ -882,7 +886,7 @@ def dataset_labeling_sm(key):
             disabled=is_labeling
         )
         col33.toggle(
-            "Pass labeled",
+            "Ignore labeled",
             value=st.session_state.auto_label_pass_labeled,
             key='auto_label_pass_labeled_widget',
             on_change=sync_auto_label_pass_labeled,
@@ -909,7 +913,7 @@ def dataset_labeling_sm(key):
         # Show status messages
         if st.session_state.get('labeling_state') in ("completed_successfully", "cancelled", "failed"):
             stats = st.session_state.labeling_stats
-            message = f"{stats['positive']} positive, {stats['negative']} negative, {stats['skipped']} skipped, {stats['no_response']} no response"
+            message = f"{stats['positive']} positive, {stats['negative']} negative, {stats['skipped']} ignored, {stats['no_response']} no response"
             
             if st.session_state.labeling_state == "completed_successfully":
                 st.success(f"Labeling completed: {message}")
